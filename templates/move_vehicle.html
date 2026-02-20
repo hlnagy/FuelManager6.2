@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-warning text-dark py-3 text-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-arrow-left-right me-2"></i>Mută Vehicul
+                </h4>
+            </div>
+            <div class="card-body p-5">
+
+                <div class="text-center mb-4">
+                    <div class="bg-light d-inline-block p-3 rounded-circle mb-3">
+                        <i class="bi bi-truck fs-1 text-secondary"></i>
+                    </div>
+                    <h3 class="font-monospace">{{ vehicle.plate_number }}</h3>
+                </div>
+
+                <div class="alert alert-light border text-center mb-4">
+                    <small class="text-muted text-uppercase">Firma Curentă</small>
+                    <div class="fw-bold fs-5">{{ vehicle.company.name if vehicle.company else 'Nealocat' }}</div>
+                </div>
+
+                <form method="post">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase text-muted ms-1">Noua Firmă
+                            Proprietară</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="new_company_id" required value="">
+                            <button type="button" class="custom-dropdown-btn py-3 fs-5">
+                                <span class="btn-label-content">-- Alege Firma Nouă --</span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item" data-value="">-- Alege --</div>
+                                {% for c in companies %}
+                                {% if not vehicle.company or c.id != vehicle.company.id %}
+                                <div class="custom-dropdown-item py-3 fs-5" data-value="{{ c.id }}">{{ c.name }}</div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg shadow-sm">
+                            <i class="bi bi-arrow-right-circle me-2"></i>Confirmă Mutarea
+                        </button>
+                        <a href="/admin" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Anulează
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Database & Instances
+instance/
+*.db
+*.sqlite
+
+# Logs & Temporary files
+*.log
+*.tmp
+.DS_Store
+
+# Large/Build Artifacts
+*.zip
+*.pdf
+installer_output/
+reports/
+
+# IDEs
+.idea/
+.vscode/

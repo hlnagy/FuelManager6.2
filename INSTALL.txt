@@ -1,0 +1,29 @@
+===================================================================
+  FUEL MANAGER - INSTALLATION GUIDE
+===================================================================
+
+This version is a "Portable Directory" build. This means all files 
+required for the program are contained within this folder.
+
+HOW TO INSTALL:
+---------------
+
+1. Move this entire folder to your desired location.
+   Recommended: C:\FuelManager\
+   (But you can keep it anywhere, e.g. Desktop or Documents)
+
+2. Open the folder.
+
+3. To create a Desktop Shortcut:
+   Double-click the file: "setup_shortcut.bat"
+
+   OR manually:
+   Right-click "FuelManager_v6.2.exe" -> Send to -> Desktop (create shortcut)
+
+4. DONE! You can now start the application from your Desktop.
+
+-------------------------------------------------------------------
+NOTE:
+- Do NOT delete any files from this folder.
+- If you move this folder later, you must recreate the shortcut.
+===================================================================

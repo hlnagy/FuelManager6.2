@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="fade-in d-flex flex-column justify-content-center" style="min-height: 85vh;">
+
+    <div class="row align-items-stretch g-3">
+        <!-- HEADER ACTIONS -->
+        <div class="col-12 d-flex justify-content-end mb-2">
+            <button class="btn btn-dark shadow-sm rounded-pill px-4" onclick="generateMobileSnapshot()">
+                <i class="bi bi-camera-fill me-2"></i> Snapshot Mobil
+            </button>
+        </div>
+
+        <!-- LEFT COLUMN: TOTAL STOCK & EMPTY SPACE (CLASSIC DESIGN) -->
+        <div class="col-lg-4">
+            <div
+                class="card shadow border-0 {% if total_percent <= 15 %}bg-danger{% else %}bg-primary{% endif %} text-white h-100 position-relative overflow-hidden">
+                <div
+                    class="card-body p-3 d-flex flex-column justify-content-center align-items-center position-relative z-1 text-center">
+
+                    <!-- Edit Icon (Top Right, Discrete) -->
+                    <span class="position-absolute top-0 end-0 m-2 text-white opacity-50 hover-opacity-100"
+                        style="cursor: pointer; transition: opacity 0.2s;" data-bs-toggle="modal"
+                        data-bs-target="#tankCapacityModal"
+                        onclick="prepareTankCapacityModal({{ tank_capacity|tojson }})">
+                        <i class="bi bi-pencil-square" style="font-size: 1rem;"></i>
+                    </span>
+
+                    <!-- Header -->
+                    <div class="mb-2">
+                        <div class="bg-white bg-opacity-25 p-2 rounded-circle d-inline-block mb-2 shadow-sm">
+                            <i class="bi bi-speedometer2 fs-2"></i>
+                        </div>
+                        <h4 class="fw-bold mb-0">Panou General</h4>
+                        <small class="opacity-75 text-uppercase letter-spacing-2" style="font-size: 0.7rem;">Ansamblu
+                            Rezerve</small>
+                    </div>
+
+                    <!-- PRIMARY METRIC: Empty Space (Capacity Available) -->
+                    <div
+                        class="my-2 w-100 p-3 rounded-3 bg-success bg-opacity-25 border border-success border-opacity-50 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-center mb-1">
+                            <i class="bi bi-arrow-down-circle-fill me-2 text-warning fs-5"></i>
+                            <span class="text-uppercase fw-bold text-warning letter-spacing-1 small">Capacitate
+                                Disponibilă</span>
+                        </div>
+                        <div class="display-4 fw-bold text-white mb-1">{{ free_space|format_thousands }} <span
+                                class="fs-5 opacity-75">L</span></div>
+                        <small class="text-white opacity-75 d-block" style="font-size: 0.75rem;">Loc liber pentru
+                            comandă (Bazine)</small>
+                    </div>
+
+                    <!-- SECONDARY METRIC: Total Stock -->
+                    <div class="mb-2 w-100 p-2 rounded-3 bg-white bg-opacity-10 border border-white border-opacity-10">
+                        <small class="text-uppercase opacity-75 fw-bold d-block mb-0" style="font-size: 0.7rem;">Stoc
+                            Total Disponibil</small>
+                        <div class="fs-2 fw-bold mb-1">{{ total_stock|format_thousands }} <span
+                                class="fs-6 opacity-75">L</span></div>
+
+                        <div class="progress bg-black bg-opacity-25 rounded-pill mx-auto mb-1"
+                            style="height: 4px; max-width: 80%;">
+                            <div class="progress-bar bg-white text-primary fw-bold" role="progressbar"
+                                style="width: {{ display_percent }}%;" aria-valuenow="{{ display_percent }}"
+                                aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        <small class="opacity-75" style="font-size: 0.7rem;">{{ total_percent|round(1) }}% Plin</small>
+
+                        {% if is_overloaded %}
+                        <div
+                            class="mt-2 badge bg-danger bg-opacity-75 border border-white rounded-pill px-2 py-1 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Supraîncărcat cu {{
+                            overload_qty|format_thousands }} L
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Footer Info -->
+                    <div class="mt-auto pt-2 border-top border-white border-opacity-10 w-100">
+                        <div
+                            class="d-inline-flex align-items-center bg-black bg-opacity-25 px-2 py-1 rounded-pill border border-white border-opacity-10 shadow-sm">
+                            <i class="bi bi-calendar-check me-2 text-warning small"></i>
+                            <span class="me-1 small opacity-75" style="font-size: 0.75rem;">Actualizat:</span>
+                            <span class="fw-bold small text-white" style="font-size: 0.75rem;">{{
+                                last_update.strftime('%d.%m.%Y %H:%M') if last_update else 'N/A' }}</span>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Decorative element -->
+                <div class="position-absolute top-0 start-0 p-5 rounded-circle bg-white opacity-10"
+                    style="width: 300px; height: 300px; transform: translate(-50%, -50%); filter: blur(50px);"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: COMPANY CARDS (CLASSIC DESIGN) -->
+        <div class="col-lg-8">
+            <div class="row g-3 h-100 align-content-center">
+                {% for id, stock in stocks.items() %}
+                <div class="col-md-6 col-xl-6">
+                    <div class="card shadow-sm border-0 hover-lift h-100 position-relative overflow-hidden">
+                        <!-- Colored Left Border -->
+                        <div class="position-absolute top-0 start-0 bottom-0 bg-{{ stock.color or 'primary' }}"
+                            style="width: 6px;"></div>
+
+                        <div class="card-body p-3 d-flex align-items-center">
+
+                            <!-- Icon or Logo -->
+                            <div class="me-3 text-center">
+                                {% if stock.logo_url %}
+                                <div class="rounded-circle p-1 d-inline-flex align-items-center justify-content-center shadow-sm"
+                                    style="width: 50px; height: 50px; background-color: white; overflow: hidden;">
+                                    <img src="{{ stock.logo_url }}" alt="{{ stock.name }}"
+                                        style="width: 100%; height: 100%; object-fit: contain;">
+                                </div>
+                                {% else %}
+                                <div class="rounded-circle p-2 d-inline-flex align-items-center justify-content-center"
+                                    style="width: 50px; height: 50px; background-color: {{ stock.color_hex }}20;">
+                                    <i class="bi bi-fuel-pump-fill fs-3" style="color: {{ stock.color_hex }};"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Main Data -->
+                            <div class="flex-grow-1 border-end pe-3">
+                                <h6 class="fw-bold mb-0 text-truncate" title="{{ stock.name }}">{{ stock.name }}</h6>
+                                <div class="text-uppercase text-muted fw-bold mb-0" style="font-size: 0.65rem;">Stoc
+                                    Disponibil:</div>
+                                <div class="fs-4 fw-bold text-{{ stock.color or 'primary' }}">
+                                    {{ stock.current|format_thousands }} <span class="fs-6 text-muted">L</span>
+                                </div>
+                            </div>
+
+                            <!-- Mini Stats -->
+                            <div class="ps-3 text-end" style="min-width: 80px;">
+                                <div class="mb-1">
+                                    <small class="d-block text-muted fw-bold text-uppercase"
+                                        style="font-size: 0.6rem;">Intrări</small>
+                                    <span class="badge rounded-pill px-2 py-1 small fw-bold"
+                                        style="background-color: #198754 !important; color: #ffffff !important;">+{{
+                                        stock.refill|format_thousands }}</span>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted fw-bold text-uppercase"
+                                        style="font-size: 0.6rem;">Consum</small>
+                                    <span class="badge rounded-pill px-2 py-1 small fw-bold"
+                                        style="background-color: #dc3545 !important; color: #ffffff !important; cursor: pointer;"
+                                        data-bs-toggle="modal" data-bs-target="#capacityModal"
+                                        onclick="prepareCapacityModal('{{ id }}', '{{ stock.name }}', {{ stock.current|tojson }})">
+                                        -{{ stock.consumed|format_thousands }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <a href="/admin/stock/details?company_id={{ id }}" class="stretched-link"></a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="col-md-6 col-xl-6">
+                    <div class="card shadow-sm border-0 hover-lift h-100 position-relative overflow-hidden"
+                        style="{% if unallocated_count > 0 %}border: 2px dashed #dc3545 !important;{% else %}border: 1px solid rgba(0,0,0,0.05);{% endif %}">
+                        <!-- Colored Left Border -->
+                        <div class="position-absolute top-0 start-0 bottom-0 {% if unallocated_count > 0 %}bg-danger{% else %}bg-secondary{% endif %}"
+                            style="width: 6px;"></div>
+
+                        <div class="card-body p-3 d-flex align-items-center">
+
+                            <!-- Icon -->
+                            <div class="me-3 text-center">
+                                <div class="rounded-circle p-2 d-inline-flex align-items-center justify-content-center"
+                                    style="width: 50px; height: 50px; background-color: {% if unallocated_count > 0 %}#dc354520{% else %}#e9ecef{% endif %};">
+                                    <i class="bi {% if unallocated_count > 0 %}bi-exclamation-triangle-fill{% else %}bi-check-circle-fill{% endif %} fs-3"
+                                        style="color: {% if unallocated_count > 0 %}#dc3545{% else %}#6c757d{% endif %};"></i>
+                                </div>
+                            </div>
+
+                            <!-- Main Data -->
+                            <div class="flex-grow-1 border-end pe-3">
+                                <h6
+                                    class="fw-bold mb-0 {% if unallocated_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    Alimentari nealocate</h6>
+                                <div class="text-uppercase text-muted fw-bold mb-0" style="font-size: 0.65rem;">
+                                    Alimentări fără firmă:</div>
+                                <div
+                                    class="fs-4 fw-bold {% if unallocated_count > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    {{ unallocated_consumed|format_thousands }} <span class="fs-6 text-muted">L</span>
+                                </div>
+                            </div>
+
+                            <!-- Mini Stats -->
+                            <div class="ps-3 text-end" style="min-width: 80px;">
+                                <div class="mb-1">
+                                    <small class="d-block text-muted fw-bold text-uppercase"
+                                        style="font-size: 0.6rem;">Tranzacții</small>
+                                    <span class="badge rounded-pill px-2 py-1 small fw-bold"
+                                        style="background-color: {% if unallocated_count > 0 %}#dc3545{% else %}#6c757d{% endif %} !important; color: #ffffff !important;">{{
+                                        unallocated_count }}</span>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted fw-bold text-uppercase"
+                                        style="font-size: 0.6rem;">Ultima</small>
+                                    <span class="badge rounded-pill px-2 py-1 small fw-bold"
+                                        style="background-color: #6c757d !important; color: #ffffff !important;">
+                                        {{ unallocated_last_update.strftime('%d.%m') if unallocated_last_update else
+                                        '-' }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <a href="/admin/stock/details#unallocated" class="stretched-link"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link to full details -->
+    <div class="col-12 mt-2 text-center">
+        <a href="/admin/stock/details" class="btn btn-sm btn-outline-secondary rounded-pill px-4 py-1 shadow-sm fw-bold"
+            style="font-size: 0.8rem;">
+            Vezi Toate Detaliile <i class="bi bi-arrow-right ms-2"></i>
+        </a>
+    </div>
+</div>
+
+<style>
+    /* Classic Dashboard Styles */
+    .hover-lift {
+        transition: all 0.2s ease;
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, .1) !important;
+        background-color: #fff;
+        z-index: 10;
+    }
+
+    .letter-spacing-1 {
+        letter-spacing: 1px;
+    }
+
+    .letter-spacing-2 {
+        letter-spacing: 2px;
+    }
+
+    [data-theme="dark"] .bg-white.text-primary.fw-bold {
+        color: #0d6efd !important;
+    }
+
+    [data-theme="dark"] .card {
+        background-color: #212529;
+        color: #f8f9fa;
+    }
+
+    [data-theme="dark"] .hover-lift:hover {
+        background-color: #2c3035;
+        color: #fff;
+    }
+</style>
+
+<!-- MODERN LIGHT MOBILE SNAPSHOT TEMPLATE (iPhone Width Approx 390px) -->
+<!-- User Request: Modern & Not Dark, Compact, With Time -->
+<div id="mobile-snapshot-container"
+    style="position: fixed; left: -9999px; top: 0; width: 390px; background: #ffffff; font-family: 'Inter', sans-serif; overflow: hidden; border: 1px solid #ccc;">
+
+    <!-- Modern Gradient Background (Light) -->
+    <div class="p-4"
+        style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); height: auto; min-height: auto; padding-bottom: 2rem !important; color: #212529;">
+
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle bg-primary text-white p-2 shadow-sm">
+                    <i class="bi bi-fuel-pump-fill fs-4"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Fuel Manager</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 1px;">Raport
+                            Stocuri</small>
+                        {% if active_gestiune %}
+                        <span class="badge bg-primary bg-opacity-75 text-white py-1 px-2 fw-bold"
+                            style="font-size: 0.6rem; letter-spacing: 0.5px;">{{ active_gestiune.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-dark rounded-pill">Actualizat: {{ last_update.strftime('%d.%m.%Y %H:%M') if
+                    last_update else 'Mai devreme' }}</span>
+            </div>
+        </div>
+
+        <!-- Capacitate Disponibilă Card (Modern) -->
+        <div class="card border-0 shadow-sm mb-3 rounded-4 overflow-hidden position-relative bg-white">
+            <!-- Left Green Accent -->
+            <div class="position-absolute top-0 start-0 bottom-0 bg-success" style="width: 6px;"></div>
+
+            <div class="card-body p-3 text-center position-relative z-1">
+                <div class="d-flex align-items-center justify-content-center mb-1">
+                    <span class="badge rounded-pill px-3 py-1 small fw-bold"
+                        style="background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;">
+                        <i class="bi bi-arrow-down-circle me-1"></i> DISPONIBIL
+                    </span>
+                </div>
+
+                <div class="display-4 fw-bold mb-0 text-dark">{{ free_space|format_thousands }}</div>
+                <div class="fs-6 text-muted mb-2 fw-medium">Litri Capacitate Liberă</div>
+
+                <div class="progress" style="height: 6px; background-color: #f1f3f5;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ 100 - total_percent }}%"
+                        aria-valuenow="{{ 100 - total_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <!-- Stoc Total -->
+                <div class="p-3 rounded-4 bg-white shadow-sm text-center h-100 border-bottom border-primary border-4">
+                    <i class="bi bi-speedometer2 text-primary fs-3 mb-1 d-block"></i>
+                    <div class="fw-bold fs-5 text-dark mb-0">{{ total_stock|format_thousands }}</div>
+                    <small class="text-muted" style="font-size: 0.7rem;">Stoc Total (L)</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <!-- Procent -->
+                <div class="p-3 rounded-4 bg-white shadow-sm text-center h-100 border-bottom border-warning border-4">
+                    <i class="bi bi-pie-chart-fill text-warning fs-3 mb-1 d-block"></i>
+                    <div class="fw-bold fs-5 text-dark mb-0">{{ total_percent|round(1) }}%</div>
+                    <small class="text-muted" style="font-size: 0.7rem;">Grad Încărcare</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company List -->
+        <h6 class="fw-bold text-muted text-uppercase letter-spacing-1 mb-2 ps-1" style="font-size: 0.75rem;">Detalii
+            Companii</h6>
+
+        <div class="d-flex flex-column gap-2">
+            {% for id, stock in stocks.items() %}
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body {{ 'p-2' if stocks|length > 4 else 'p-3' }} d-flex align-items-center">
+                    <!-- Icon or Logo -->
+                    {% if stock.logo_url %}
+                    <div class="me-3 d-flex align-items-center justify-content-center shadow-sm rounded-circle"
+                        style="width: 42px; height: 42px; background: white; border: 1px solid #eee; overflow: hidden;">
+                        <img src="{{ stock.logo_url }}" alt="{{ stock.name }}"
+                            style="width: 100%; height: 100%; object-fit: contain;">
+                    </div>
+                    {% else %}
+                    <div class="rounded-circle me-3 d-flex align-items-center justify-content-center"
+                        style="width: 42px; height: 42px; background-color: {{ stock.color_hex }}15; border: 1px solid {{ stock.color_hex }}30;">
+                        <i class="bi bi-building-fill" style="color: {{ stock.color_hex }}; font-size: 1.2rem;"></i>
+                    </div>
+                    {% endif %}
+
+                    <!-- Text -->
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold mb-0 text-dark"
+                            style="font-size: {{ '0.85rem' if stocks|length > 4 else '0.9rem' }};">{{ stock.name }}</h6>
+                        <small class="text-muted" style="font-size: 0.7rem;">
+                            Update: {{ stock.last_update.strftime('%H:%M') if stock.last_update else '-' }}
+                        </small>
+                    </div>
+
+                    <!-- Value -->
+                    <div class="text-end">
+                        <div class="fw-bold fs-4 text-dark d-flex align-items-baseline justify-content-end">
+                            {{ stock.current|format_thousands }}
+                            <span class="ms-1 fw-bold text-{{ stock.color or 'primary' }}"
+                                style="font-size: 0.8rem;">Ltr</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-4 text-center opacity-50">
+            <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
+                <i class="bi bi-check-circle-fill text-success"></i>
+                <small class="fw-bold text-dark">Snapshot Generat</small>
+            </div>
+            <small style="font-size: 0.6rem; color: #6c757d;">Fuel Manager App</small>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Mobile Snapshot
+    function generateMobileSnapshot() {
+        const btn = document.querySelector('button[onclick="generateMobileSnapshot()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Procesare...';
+
+        const element = document.getElementById('mobile-snapshot-container');
+
+        // Render high-quality canvas
+        html2canvas(element, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            logging: false
+        }).then(canvas => {
+            const imageData = canvas.toDataURL("image/png");
+
+            // Send to backend to save in Downloads
+            fetch('/api/snapshot/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerHTML = originalText;
+
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Snapshot Salvat!',
+                            html: `Imaginea <b>${data.filename}</b> a fost salvată cu succes în folderul <b>Downloads</b>.`,
+                            icon: 'success',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    } else {
+                        Swal.fire('Eroare', 'Nu s-a putut salva imaginea: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    btn.innerHTML = originalText;
+                    console.error('Error:', error);
+                    Swal.fire('Eroare', 'Eroare la comunicarea cu serverul.', 'error');
+                });
+        });
+    }
+
+    // Modal Population Functions (Singleton Objects Managed by Bootstrap data-attributes)
+    function prepareTankCapacityModal(currentCapacity) {
+        document.getElementById('tankCapValue').value = currentCapacity;
+    }
+
+    function prepareCapacityModal(companyId, companyName, currentCapacity) {
+        document.getElementById('capCompanyName').textContent = companyName;
+        document.getElementById('capCompanyId').value = companyId;
+        document.getElementById('capValue').value = currentCapacity;
+        document.getElementById('capacityForm').action = `/admin/company/set_capacity/${companyId}`;
+    }
+
+    // Dynamic Tank Colors Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const tankPercentValue = {{ total_percent| tojson
+    }};
+    const tankCard = document.querySelector('.col-lg-4 .card');
+
+    if (tankCard) {
+        tankCard.classList.remove('bg-primary', 'bg-danger');
+
+        if (tankPercentValue >= 80) {
+            tankCard.classList.add('tank-color-safe');
+        } else if (tankPercentValue >= 50) {
+            tankCard.classList.add('tank-color-normal');
+        } else if (tankPercentValue >= 30) {
+            tankCard.classList.add('tank-color-warning');
+        } else if (tankPercentValue >= 20) {
+            tankCard.classList.add('tank-color-low');
+        } else {
+            tankCard.classList.add('tank-color-critical');
+            const icon = tankCard.querySelector('i.bi-speedometer2');
+            if (icon) icon.classList.add('icon-shake');
+        }
+    }
+    });
+</script>
+
+
+<style>
+    /* === MODERN DASHBOARD STYLES === */
+
+    /* Glass Effect for Cards */
+    .card-glass {
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    }
+
+    /* Hover Lift Effect */
+    .hover-lift {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .hover-lift:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+    }
+
+    /* Dynamic Tank Colors Based on Percentage */
+    .tank-color-safe {
+        background: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(22, 163, 74) 100%) !important;
+    }
+
+    .tank-color-normal {
+        background: linear-gradient(135deg, rgb(234, 179, 8) 0%, rgb(202, 138, 4) 100%) !important;
+    }
+
+    .tank-color-warning {
+        background: linear-gradient(135deg, rgb(249, 115, 22) 0%, rgb(234, 88, 12) 100%) !important;
+    }
+
+    .tank-color-low {
+        background: linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%) !important;
+    }
+
+    .tank-color-critical {
+        background: linear-gradient(135deg, rgb(220, 38, 38) 0%, rgb(185, 28, 28) 100%) !important;
+        animation: pulse-critical 2s ease-in-out infinite;
+    }
+
+    /* Critical Level Warning Animation */
+    @keyframes pulse-critical {
+
+        0%,
+        100% {
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.2), 0 8px 32px rgba(31, 38, 135, 0.15);
+        }
+
+        50% {
+            box-shadow: 0 0 30px rgba(220, 38, 38, 0.6), 0 0 60px rgba(220, 38, 38, 0.4), 0 12px 48px rgba(31, 38, 135, 0.25);
+            transform: scale(1.02);
+        }
+    }
+
+    /* Glowing Border for Low Levels */
+    .glow-warning {
+        position: relative;
+        animation: glow-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes glow-pulse {
+
+        0%,
+        100% {
+            border-color: rgba(249, 115, 22, 0.5);
+        }
+
+        50% {
+            border-color: rgba(249, 115, 22, 1);
+        }
+    }
+
+    /* Icon Shake Animation for Critical State */
+    @keyframes icon-shake {
+
+        0%,
+        100% {
+            transform: rotate(0deg);
+        }
+
+        25% {
+            transform: rotate(-5deg);
+        }
+
+        75% {
+            transform: rotate(5deg);
+        }
+    }
+
+    .icon-shake {
+        animation: icon-shake 0.5s ease-in-out infinite;
+    }
+
+    /* Modern Gradient Gray Background - Light Theme (Default) */
+    body {
+        background: linear-gradient(180deg, #e8eaed 0%, #d5d8dc 40%, #c9cdd2 100%);
+        background-attachment: fixed;
+    }
+
+    /* Budila (Rocky) Theme - Slightly Darker Gradient */
+    [data-theme="budila"] body,
+    body[data-theme="budila"] {
+        background: linear-gradient(180deg, #cfd3d7 0%, #b8bec4 40%, #a8b0b7 100%) !important;
+        background-attachment: fixed !important;
+    }
+</style>
+{% endblock %}

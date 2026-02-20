@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 fade-in">
+    <div class="col-12">
+        <h2 class="mb-2"><i class="bi bi-server me-2"></i>Date & Sistem</h2>
+        <p class="text-muted">Gestionarea importurilor, exporturilor și a copiilor de rezervă.</p>
+    </div>
+</div>
+
+<div class="row fade-in g-4">
+    <!-- 1. CSV Import Card -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100 border-primary">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-filetype-csv me-2"></i>Importare CSV (Alimentări)</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small mb-3">Încărcați fișierul CSV cu alimentări pentru procesare automată.</p>
+
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input class="form-control" type="file" id="csvFile" name="file" required accept=".csv">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-2"></i>Upload & Procesare
+                    </button>
+                </form>
+
+                {% if message %}
+                <div class="alert alert-info mt-3 d-flex align-items-center shadow-sm">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    <div>{{ message }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Database Backup Card -->
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100 border-warning">
+            <div class="card-header bg-warning bg-opacity-25 py-3">
+                <h5 class="mb-0 text-dark"><i class="bi bi-database-fill-gear me-2"></i>Date Profil (Export / Import)
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <!-- Export Section -->
+                <div class="mb-4 text-center">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-download me-1"></i> Exportare Profil Activ</h6>
+                    <p class="small text-muted mb-2">
+                        Descarcă datele pentru profilul curent: <strong>{{ active_gestiune.name if active_gestiune else
+                            'Nedefinit' }}</strong>.<br>
+                        (Companii, Mașini, Tranzacții, Stoc)
+                    </p>
+                    <a href="/admin/database/export" class="btn btn-outline-dark w-100"
+                        onclick="return confirmAction(event, 'Exportați datele pentru profilul: {{ active_gestiune.name if active_gestiune else 'Curent' }}?');">
+                        Descarcă Backup Profil (.db)
+                    </a>
+                </div>
+
+                <hr class="text-muted opacity-25">
+
+                <!-- Import Section -->
+                <div class="mt-2">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-upload me-1"></i> Restaurare (Import)</h6>
+                    <div class="alert alert-danger py-2 small">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>ATENȚIE:</strong> Această acțiune va <u>ȘTERGE și ÎNLOCUI</u> toate datele profilului
+                        <strong>{{ active_gestiune.name if active_gestiune else 'Curent' }}</strong>!
+                    </div>
+                    <form action="/admin/database/import" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <input type="file" name="db_file" class="form-control form-control-sm" accept=".db,.sqlite"
+                                required>
+                        </div>
+
+                        <button class="btn btn-warning w-100" type="submit" onclick="return confirmImport(event);">
+                            <i class="bi bi-arrow-repeat me-2"></i> Restaurare Profil
+                        </button>
+                    </form>
+                </div>
+
+                <script>
+                    function confirmImport(event) {
+                        let profileName = "{{ active_gestiune.name if active_gestiune else 'Curent' }}";
+                        let message = `⚠️ ATENȚIE CRITICĂ! ⚠️\n\nSunteți pe cale să restaurați datele pentru profilul "${profileName}".\n\nTOATE datele existente în acest profil (tranzacții, stoc, mașini, firme) vor fi ȘTERSE COMPLET și înlocuite cu datele din fișier.\n\nAceastă acțiune NU poate fi anulată.\n\nSunteți sigur că doriți să continuați?`;
+                        return confirmSubmit(event, message);
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Duplicates Section (Existing Logic from import.html) -->
+{% if duplicates %}
+<div class="row fade-in mt-4">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Intrări Duplicate Găsite
+            </h5>
+            <p class="mb-0">Următoarele <strong>{{ duplicates|length }}</strong> intrări au fost omise deoarece există
+                deja în baza de date.</p>
+        </div>
+
+        <div class="card border-warning">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Lista Duplicatelor</h6>
+                <div>
+                    <button class="btn btn-sm btn-success me-2" onclick="acceptSelectedDuplicates()"
+                        id="acceptSelectedBtn" disabled>
+                        <i class="bi bi-check-circle me-1"></i>Acceptare Selectate (<span
+                            id="selectedAcceptCount">0</span>)
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSelectedDuplicates()" id="deleteSelectedBtn"
+                        disabled>
+                        <i class="bi bi-trash me-1"></i>Șterge Selectate (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAll" onchange="toggleAllDuplicates(this)">
+                                </th>
+                                <th style="width: 80px;" class="text-center">Rând CSV</th>
+                                <th style="width: 100px;" class="text-center">Dată</th>
+                                <th style="width: 70px;" class="text-center">Oră</th>
+                                <th style="width: 120px;">Rendszám</th>
+                                <th style="width: 100px;" class="text-center">Cantitate</th>
+                                <th style="width: 150px;">Firmă</th>
+                                <th style="width: 140px;" class="text-center">Acțiuni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dup in duplicates %}
+                            <tr data-company-id="{{ dup.company_id if dup.company_id else 'None' }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="duplicate-checkbox" value="{{ dup.existing_id }}"
+                                        onchange="updateSelectedCount()">
+                                </td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ dup.row_number }}</span>
+                                </td>
+                                <td class="text-center">{{ dup.date }}</td>
+                                <td class="text-center">{{ dup.time }}</td>
+                                <td><strong>{{ dup.plate }}</strong></td>
+                                <td class="text-center">{{ "%.2f"|format(dup.quantity) }} L</td>
+                                <td>
+                                    {% set colors = ['bg-primary', 'bg-success', 'bg-danger', 'bg-warning', 'bg-info',
+                                    'bg-secondary', 'bg-dark'] %}
+                                    {% set color_index = (dup.company | hash) % colors|length %}
+                                    <span class="badge {{ colors[color_index] }}">{{ dup.company }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary mb-1"
+                                        onclick="showExisting({{ dup.existing_id }})" title="Vezi existent">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success mb-1"
+                                        onclick="acceptDuplicate({{ dup.existing_id }}, {{ dup.company_id if dup.company_id else 'null' }})"
+                                        title="Acceptă és mută la firma corectă" {% if not dup.company_id %}disabled{%
+                                        endif %}>
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger mb-1"
+                                        onclick="deleteDuplicate({{ dup.existing_id }})"
+                                        title="Șterge intrarea existentá">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                <small><i class="bi bi-info-circle me-1"></i>Acceptați intrările pentru a le muta automat la firma
+                    corectă, sau ștergeți-le dacă sunt greșite.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function toggleAllDuplicates(checkbox) {
+        const checkboxes = document.querySelectorAll('.duplicate-checkbox');
+        checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.duplicate-checkbox:checked');
+        const count = checkboxes.length;
+        document.getElementById('selectedCount').textContent = count;
+        document.getElementById('selectedAcceptCount').textContent = count;
+        document.getElementById('deleteSelectedBtn').disabled = count === 0;
+        document.getElementById('acceptSelectedBtn').disabled = count === 0;
+    }
+
+    function acceptDuplicate(transactionId, companyId) {
+        if (!companyId) {
+            Swal.fire('Eroare', 'Nu există firmă validă pentru acceptare!', 'error');
+            return;
+        }
+        Swal.fire({
+            title: 'Confirmare',
+            text: 'Acceptați această intrare și o mutați la firma corectă?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Da, acceptă'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/admin/transaction/accept/${transactionId}/${companyId}?redirect=/upload`;
+            }
+        });
+    }
+
+    function acceptSelectedDuplicates() {
+        const checkboxes = document.querySelectorAll('.duplicate-checkbox:checked');
+        const data = [];
+
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            const companyId = row.dataset.companyId;
+            if (companyId && companyId !== 'None') {
+                data.push({ id: cb.value, companyId: companyId });
+            }
+        });
+
+        if (data.length === 0) {
+            Swal.fire('Info', 'Nici o intrare selectată cu firmă validă!', 'info');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Confirmare Multiplă',
+            text: `Acceptați ${data.length} intrări și le mutați la firmele corecte?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Da, procesează'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                acceptNextTransaction(data, 0);
+            }
+        });
+    }
+
+    function acceptNextTransaction(data, index) {
+        if (index >= data.length) {
+            window.location.reload();
+            return;
+        }
+
+        const item = data[index];
+        fetch(`/admin/transaction/accept/${item.id}/${item.companyId}?redirect=skip`, {
+            method: 'GET'
+        }).then(() => {
+            acceptNextTransaction(data, index + 1);
+        }).catch(err => {
+            console.error('Error accepting transaction:', err);
+            acceptNextTransaction(data, index + 1);
+        });
+    }
+
+    function deleteSelectedDuplicates() {
+        const checkboxes = document.querySelectorAll('.duplicate-checkbox:checked');
+        const ids = Array.from(checkboxes).map(cb => cb.value);
+
+        if (ids.length === 0) {
+            Swal.fire('Info', 'Nu ați selectat nici o intrare!', 'info');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Ștergere Multiplă',
+            text: `Sigur doriți să ștergeți ${ids.length} intrări?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Da, șterge'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deleteNextTransaction(ids, 0);
+            }
+        });
+    }
+
+    function deleteNextTransaction(ids, index) {
+        if (index >= ids.length) {
+            window.location.reload();
+            return;
+        }
+
+        fetch(`/admin/transaction/delete/${ids[index]}?redirect=skip`, {
+            method: 'GET'
+        }).then(() => {
+            deleteNextTransaction(ids, index + 1);
+        }).catch(err => {
+            console.error('Error deleting transaction:', err);
+            deleteNextTransaction(ids, index + 1);
+        });
+    }
+
+    function deleteDuplicate(transactionId) {
+        Swal.fire({
+            title: 'Confirmare',
+            text: 'Sigur doriți să ștergeți această intrare?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Da, șterge'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/admin/transaction/delete/${transactionId}?redirect=/upload`;
+            }
+        });
+    }
+</script>
+
+</script>
+{% endblock %}

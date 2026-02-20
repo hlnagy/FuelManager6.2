@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white py-3 text-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>Modificare Alimentare
+                </h4>
+            </div>
+            <div class="card-body p-5">
+                <form method="post">
+
+                    <div class="mb-4 text-center">
+                        <span class="badge bg-secondary p-2 fs-6">
+                            <i class="bi bi-building me-1"></i> {{ transaction.company.name if transaction.company else
+                            'Nealocat' }}
+                        </span>
+                    </div>
+
+                    <div class="form-floating mb-4">
+                        <input type="text" list="vehicle_list"
+                            class="form-control fw-bold fs-5 font-monospace text-uppercase" name="plate_input"
+                            value="{{ transaction.vehicle.plate_number }}" required autocomplete="off"
+                            placeholder="AB-01-ABC">
+                        <label>Vehicul / Cheie (Utilaj)</label>
+                        <datalist id="vehicle_list">
+                            {% for v in vehicles %}
+                            <option value="{{ v.plate_number }}">{{ v.company.name if v.company else 'Nealocat' }}
+                            </option>
+                            {% endfor %}
+                        </datalist>
+                        <div class="form-text">Introduceți numărul de înmatriculare sau selectați din listă. Dacă nu
+                            există, va fi creat automat.</div>
+                    </div>
+
+                    <div class="form-floating mb-4">
+                        <input type="number" step="0.01" class="form-control fw-bold fs-4 text-primary" name="quantity"
+                            value="{{ transaction.quantity }}" required>
+                        <label>Cantitate (Litri)</label>
+                    </div>
+
+                    <div class="alert alert-light border d-flex align-items-center mb-4">
+                        <i class="bi bi-calendar3 me-3 fs-4 text-muted"></i>
+                        <div>
+                            <small class="text-muted text-uppercase fw-bold">Data Tranzacției</small>
+                            <div class="fs-5 fw-bold">{{ transaction.date.strftime('%d.%m.%Y %H:%M') }}</div>
+                            <input type="hidden" name="date" value="{{ transaction.date.strftime('%Y-%m-%dT%H:%M') }}">
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                            <i class="bi bi-save me-2"></i>Salvează Modificările
+                        </button>
+
+                        <div class="d-flex gap-2">
+                            <a href="/admin/stock/delete_item/trans/{{ transaction.id }}"
+                                class="btn btn-outline-danger w-50"
+                                onclick="return confirmAction(event, 'Sigur doriți să ștergeți aceast consum?');">
+                                <i class="bi bi-trash me-2"></i>Șterge
+                            </a>
+                            <a href="/admin/stock/details?company_id={{ transaction.company_id }}"
+                                class="btn btn-outline-secondary w-50">
+                                <i class="bi bi-x-circle me-2"></i>Anulează
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

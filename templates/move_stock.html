@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-warning text-dark py-3 text-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-arrow-left-right me-2"></i>Mută Element
+                </h4>
+            </div>
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <p class="mb-1 text-muted">Elementul selectat:</p>
+                    <h5 class="fw-bold">{{ item_desc }}</h5>
+                    <div class="badge bg-primary fs-6 mt-2">{{ item_qty }} Litri</div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <div class="alert alert-light border text-center h-100 mb-0">
+                            <small class="text-muted text-uppercase d-block mb-1">Firma Curentă</small>
+                            <div class="fw-bold fs-6">{{ current_company }}</div>
+                        </div>
+                    </div>
+                    {% if item_type == 'trans' %}
+                    <div class="col-6">
+                        <div class="alert alert-light border text-center h-100 mb-0">
+                            <small class="text-muted text-uppercase d-block mb-1">Categoria Curentă</small>
+                            <div class="fw-bold fs-6">{{ current_category }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted ms-1">Mută la Firma</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="new_company_id" required value="">
+                            <button type="button" class="custom-dropdown-btn py-3 fs-6">
+                                <span class="btn-label-content">-- Selectează Firma --</span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item py-3 fs-6" data-value="">-- Selectează Firma --</div>
+                                {% for c in companies %}
+                                <div class="custom-dropdown-item py-3 fs-6 {{ 'active' if c.name == current_company else '' }}"
+                                    data-value="{{ c.id }}">{{ c.name }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if item_type == 'trans' %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase text-muted ms-1">Mută la Categoria
+                            (opțional)</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="new_category_id" value="">
+                            <button type="button" class="custom-dropdown-btn py-3 fs-6">
+                                <span class="btn-label-content">-- Selectează Categoria (opțional) --</span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item py-3 fs-6" data-value="">-- Selectează Categoria --
+                                </div>
+                                {% for cat in categories %}
+                                <div class="custom-dropdown-item py-3 fs-6 {{ 'active' if cat.name == current_category else '' }}"
+                                    data-value="{{ cat.id }}">{{ cat.name }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg shadow-sm py-3 fw-bold">
+                            <i class="bi bi-arrow-right-circle me-2"></i>Confirmă Modificările
+                        </button>
+                        <a href="/admin/stock/details" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Anulează
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

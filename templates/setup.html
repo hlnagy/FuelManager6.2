@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ro" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bine ai venit - Fuel Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', SYSTEM, system-ui, sans-serif;
+        }
+
+        .setup-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .setup-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-color: var(--bs-primary);
+        }
+    </style>
+</head>
+
+<body class="d-flex align-items-center justify-content-center min-vh-100">
+
+    <div class="container fade-in" style="max-width: 900px;">
+        <!-- Flash Messages for Errors -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="text-center mb-5">
+            <i class="bi bi-fuel-pump-fill display-1 text-primary mb-3"></i>
+            <h1 class="fw-bold display-5">Bun venit la Fuel Manager v6.2</h1>
+            <p class="lead text-muted">Soluția profesională pentru gestiunea combustibilului.</p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Option 1: New Profile -->
+            <div class="col-md-6">
+                <div class="card h-100 p-4 setup-card text-center" onclick="showSection('new-profile')">
+                    <div class="card-body">
+                        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex p-3 mb-3">
+                            <i class="bi bi-plus-lg fs-1 text-success"></i>
+                        </div>
+                        <h3 class="fw-bold">Începe de la Zero</h3>
+                        <p class="text-muted">Creează prima ta gestiune și începe să lucrezi imediat.</p>
+                        <button class="btn btn-outline-success rounded-pill px-4 mt-3">Creează Profil</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Option 2: Restore Backup -->
+            <div class="col-md-6">
+                <div class="card h-100 p-4 setup-card text-center" onclick="showSection('restore-backup')">
+                    <div class="card-body">
+                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex p-3 mb-3">
+                            <i class="bi bi-cloud-upload fs-1 text-primary"></i>
+                        </div>
+                        <h3 class="fw-bold">Restaurează Date</h3>
+                        <p class="text-muted">Ai deja o salvare? Încarcă fișierul <code>.db</code> și continuă lucrul.
+                        </p>
+                        <button class="btn btn-outline-primary rounded-pill px-4 mt-3">Importă Backup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Forms -->
+        <div id="new-profile" class="mt-5 collapse">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-building-add me-2"></i> Configurare Inițială</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form action="/setup/create" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Numele Primei Gestiuni</label>
+                            <input type="text" name="name" class="form-control form-control-lg"
+                                placeholder="Ex: Depozit Central, Șantier A..." required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Cod Punct de Lucru (Opțional)</label>
+                            <input type="text" name="site_code" class="form-control" placeholder="Ex: BU-01">
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-light" onclick="hideSections()">Înapoi</button>
+                            <button type="submit" class="btn btn-success px-5 fw-bold">Dă-i drumul! 🚀</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="restore-backup" class="mt-5 collapse">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-database-up me-2"></i> Importare Bază de Date</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form action="/setup/restore" method="POST" enctype="multipart/form-data">
+                        <div class="alert alert-info d-flex align-items-center mb-4">
+                            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                            <div>
+                                Te rugăm să încarci fișierul <strong>fuel_manager.db</strong> dintr-o salvare
+                                anterioară.
+                                <br><small>Sistemul va verifica automat validitatea fișierului.</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Fișier Backup (.db)</label>
+                            <input type="file" name="database_file" class="form-control form-control-lg" accept=".db"
+                                required>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-light" onclick="hideSections()">Înapoi</button>
+                            <button type="submit" class="btn btn-primary px-5 fw-bold">Restaurează și Start 🔄</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showSection(id) {
+            document.getElementById('new-profile').classList.remove('show');
+            document.getElementById('restore-backup').classList.remove('show');
+
+            // Add slight delay for smooth transition feel
+            setTimeout(() => {
+                new bootstrap.Collapse(document.getElementById(id), { toggle: true });
+                document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function hideSections() {
+            document.querySelectorAll('.collapse.show').forEach(el => {
+                new bootstrap.Collapse(el, { toggle: false });
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Heartbeat Mechanism to keep server alive during setup
+        setInterval(() => {
+            fetch('/api/heartbeat', { method: 'POST' }).catch(e => { });
+        }, 2000);
+    </script>
+</body>
+
+</html>

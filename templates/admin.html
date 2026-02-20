@@ -1,0 +1,1006 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 fade-in">
+    <div>
+        <h2 class="mb-1">Administrare</h2>
+        <p class="text-muted mb-0">Gestionare companii și flotă auto</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/admin/company/new" class="btn btn-success shadow-sm">
+            <i class="bi bi-building-add me-2"></i>Companie Nouă
+        </a>
+        <a href="/admin/vehicle/new" class="btn btn-primary shadow-sm">
+            <i class="bi bi-car-front-fill me-2"></i>Vehicul Nou
+        </a>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-transparent border-bottom-0 pb-0 pt-3">
+        <ul class="nav nav-tabs card-header-tabs flex-wrap border-0 pt-1" id="adminTabs" role="tablist">
+            <!-- Row 1: Companies & Unallocated -->
+            {% for company in companies %}
+            {% set is_active = (active_company_id == company.id) or (not active_company_id and not active_tab and
+            loop.first) %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if is_active else '' }} px-3 py-2 fw-bold position-relative mb-2"
+                    id="tab-c-{{ company.id }}" data-bs-toggle="tab" data-bs-target="#content-c-{{ company.id }}"
+                    type="button" role="tab" aria-selected="{{ 'true' if is_active else 'false' }}"
+                    style="--tab-color: {{ company.color_hex }};">
+                    <i class="bi bi-building-fill me-1"></i>
+                    {{ company.name }}
+                </button>
+            </li>
+            {% endfor %}
+
+            <!-- Nealocate (Fără Firmă) Tab -->
+            {% set is_unallocated_active = (active_tab == 'unallocated') %}
+            <li class="nav-item ms-2" role="presentation">
+                <button class="nav-link {{ 'active' if is_unallocated_active else '' }} text-danger fw-bold mb-2"
+                    id="tab-unallocated" data-bs-toggle="tab" data-bs-target="#content-unallocated" type="button"
+                    role="tab" aria-selected="{{ 'true' if is_unallocated_active else 'false' }}"
+                    style="--tab-color: var(--bs-danger);">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Nealocate ({{ unallocated_vehicles|length }})
+                </button>
+            </li>
+
+            <!-- Force line break for row 2 -->
+            <li class="w-100 m-0 p-0" style="height: 0; list-style: none;"></li>
+
+            <!-- Row 2: Categories (Merged) -->
+            {% set is_categories_active = (active_tab == 'categories' or active_tab == 'uncategorized') %}
+            <li class="nav-item mt-1" role="presentation">
+                <button class="nav-link {{ 'active' if is_categories_active else '' }} fw-bold" id="tab-categories"
+                    data-bs-toggle="tab" data-bs-target="#content-categories" type="button" role="tab"
+                    aria-selected="{{ 'true' if is_categories_active else 'false' }}"
+                    style="--tab-color: var(--bs-indigo);">
+                    <i class="bi bi-grid-3x3-gap-fill me-1"></i> Categorii & Utilaje
+                    {% if uncategorized_vehicles %}<span class="badge bg-warning text-dark ms-1 shadow-sm">{{
+                        uncategorized_vehicles|length }}</span>{% endif %}
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card-body bg-body p-4 rounded-bottom">
+        <div class="tab-content" id="adminTabsContent">
+            {% for company in companies %}
+            {% set is_active = (active_company_id == company.id) or (not active_company_id and not active_tab and
+            loop.first) %}
+            <div class="tab-pane fade {{ 'show active' if is_active else '' }}" id="content-c-{{ company.id }}"
+                role="tabpanel">
+
+                <div class="row g-4">
+                    <!-- Company Info Column -->
+                    <div class="col-md-4">
+                        <div class="card h-100 shadow-sm border-0 bg-light position-relative overflow-hidden">
+                            <!-- Colored strip -->
+                            <div class="position-absolute top-0 start-0 bottom-0"
+                                style="width: 4px; background-color: var(--bs-{{ company.color }});"></div>
+
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    {% if company.logo_url %}
+                                    <div class="bg-white p-1 rounded-circle shadow-sm me-3 border border-{{ company.color }} border-opacity-25 d-flex align-items-center justify-content-center"
+                                        style="width: 54px; height: 54px; overflow: hidden;">
+                                        <img src="{{ company.logo_url }}" alt="{{ company.name }}" class="img-fluid"
+                                            style="max-height: 100%; max-width: 100%;">
+                                    </div>
+                                    {% else %}
+                                    <div class="bg-white p-2 rounded-circle shadow-sm me-3 border border-{{ company.color }} border-opacity-25 d-flex align-items-center justify-content-center"
+                                        style="width: 54px; height: 54px;">
+                                        <i class="bi bi-building fs-3 text-{{ company.color }}"></i>
+                                    </div>
+                                    {% endif %}
+                                    <h5 class="card-title mb-0 fw-bold text-dark">{{ company.name }}</h5>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="text-muted small text-uppercase fw-bold">Cod Unic (CUI)</label>
+                                    <div class="fs-6 fw-medium">{{ company.cui or '-' }}</div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="text-muted small text-uppercase fw-bold">Adresă</label>
+                                    <div class="fs-6 fw-medium">{{ company.address or '-' }}</div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="text-muted small text-uppercase fw-bold">Cod Produs</label>
+                                    <div
+                                        class="fs-6 font-monospace bg-white px-2 py-1 rounded border d-inline-block text-{{ company.color }} fw-bold">
+                                        {{
+                                        company.product_code or '-' }}</div>
+                                </div>
+
+                                <div class="d-grid gap-2 mt-auto">
+                                    <a href="/admin/company/edit/{{ company.id }}"
+                                        class="btn btn-outline-{{ company.color }} params-saver"><i
+                                            class="bi bi-pencil me-2"></i>Editează Datele</a>
+                                    <a href="/admin/company/delete/{{ company.id }}" class="btn btn-outline-danger"
+                                        onclick="return confirmAction(event, 'ATENȚIE! Sigur doriți să ștergeți compania {{ company.name }}? Această acțiune este ireversibilă!');">
+                                        <i class="bi bi-trash me-2"></i>Șterge Compania
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicles List Column -->
+                    <div class="col-md-8">
+                        <div class="card h-100 border shadow-sm">
+                            <div
+                                class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center border-bottom border-{{ company.color }} border-opacity-25">
+                                <h6 class="mb-0 fw-bold text-{{ company.color }}"><i class="bi bi-truck me-2"></i>Flotă
+                                    Vehicule Alocate</h6>
+                                <span class="badge bg-{{ company.color }} text-white rounded-pill shadow-sm">{{
+                                    company.vehicles|length }} vehicule</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush list-group-hover">
+                                    {% if company.vehicles %}
+                                    {% for vehicle in company.vehicles %}
+                                    <li
+                                        class="list-group-item d-flex justify-content-between align-items-center py-3 border-start border-4 border-white hover-border-{{ company.color }}">
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-light p-2 me-3 text-{{ company.color }}">
+                                                <i class="bi bi-truck"></i>
+                                            </div>
+                                            <span class="fw-bold font-monospace fs-5 text-dark">{{ vehicle.plate_number
+                                                }}</span>
+                                        </div>
+                                        <div class="btn-group">
+                                            <a href="/admin/vehicle/edit/{{ vehicle.id }}"
+                                                class="btn btn-sm btn-outline-secondary params-saver"
+                                                title="Editează"><i class="bi bi-pencil"></i></a>
+                                            <a href="/admin/vehicle/move/{{ vehicle.id }}"
+                                                class="btn btn-sm btn-outline-warning params-saver"
+                                                title="Mută la altă firmă"><i class="bi bi-arrow-left-right"></i></a>
+                                            <a href="/admin/vehicle/delete/{{ vehicle.id }}"
+                                                class="btn btn-sm btn-outline-danger params-saver" title="Șterge"
+                                                onclick="return confirmAction(event, 'Sigur ștergeți vehiculul {{ vehicle.plate_number }}?');"><i
+                                                    class="bi bi-trash"></i></a>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                    {% else %}
+                                    <li class="list-group-item text-muted text-center py-5">
+                                        <div class="mb-3">
+                                            <i class="bi bi-slash-circle fs-1 text-muted opacity-25"></i>
+                                        </div>
+                                        <p class="mb-0">Niciun vehicul alocat acestei companii.</p>
+                                        <a href="/admin/vehicle/new?company_id={{ company.id }}"
+                                            class="btn btn-sm btn-link text-{{ company.color }}">Adaugă Vehicul</a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+
+            <!-- Nealocate Tab Content -->
+            <div class="tab-pane fade {{ 'show active' if active_tab == 'unallocated' else '' }}"
+                id="content-unallocated" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-danger shadow-sm border-danger d-flex align-items-center mb-4">
+                            <i class="bi bi-exclamation-octagon-fill fs-2 me-3"></i>
+                            <div>
+                                <h5 class="alert-heading fw-bold mb-1">Nealocate la Firmă</h5>
+                                <p class="mb-0">Următoarele vehicule nu sunt asignate niciunei companii.</p>
+                            </div>
+                        </div>
+
+                        <div class="card border-danger shadow-sm">
+                            <div class="card-header bg-danger text-white py-3">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-question-circle me-2"></i>Vehicule fără
+                                    Companie
+                                </h6>
+                            </div>
+                            <ul class="list-group list-group-flush list-group-hover">
+                                <li class="list-group-item bg-light border-bottom py-2">
+                                    <div class="form-check m-0 ps-5 ms-1">
+                                        <input type="checkbox" class="form-check-input"
+                                            id="selectAllUnallocatedVehicles">
+                                        <label class="form-check-label small fw-bold ms-1"
+                                            for="selectAllUnallocatedVehicles">Selectează Toate</label>
+                                    </div>
+                                </li>
+                                {% if unallocated_vehicles %}
+                                {% for vehicle in unallocated_vehicles %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="form-check me-3">
+                                            <input type="checkbox" name="vehicle_ids" value="{{ vehicle.id }}"
+                                                class="form-check-input unallocated-vehicle-checkbox">
+                                        </div>
+                                        <span class="badge bg-danger p-2 me-3"><i
+                                                class="bi bi-exclamation-lg"></i></span>
+                                        <span class="fw-bold font-monospace fs-5 text-danger">{{ vehicle.plate_number
+                                            }}</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/vehicle/edit/{{ vehicle.id }}"
+                                            class="btn btn-sm btn-outline-secondary params-saver py-1 px-3">
+                                            <i class="bi bi-pencil me-1"></i> Edit
+                                        </a>
+                                        <a href="/admin/vehicle/move/{{ vehicle.id }}"
+                                            class="btn btn-sm btn-warning params-saver fw-bold py-1 px-3">
+                                            <i class="bi bi-check-circle me-1"></i> Alocă la Firmă
+                                        </a>
+                                        <a href="/admin/vehicle/delete/{{ vehicle.id }}"
+                                            class="btn btn-sm btn-outline-danger params-saver"
+                                            onclick="return confirmAction(event, 'Sigur doriți să ștergeți acest vehicul?');">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                                {% else %}
+                                <li class="list-group-item text-muted text-center py-5">
+                                    Nu există vehicule nealocate la companii.
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories & Uncategorized Merged Tab Content -->
+            {% set is_cats_active = (active_tab == 'categories' or active_tab == 'uncategorized') %}
+            <div class="tab-pane fade {{ 'show active' if is_cats_active else '' }}" id="content-categories"
+                role="tabpanel">
+
+                <!-- Section 1: Uncategorized Allocation -->
+                <form id="bulkCategorizeForm" action="/admin/vehicles/bulk_set_category" method="post">
+                    <div class="card border-warning shadow-sm mb-5">
+                        <div
+                            class="card-header bg-warning text-dark py-3 d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-sm btn-link text-dark p-0 me-3" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#collapseUncategorized"
+                                    aria-expanded="true" id="toggleUncategorized">
+                                    <i class="bi bi-chevron-down fs-5" id="chevronUncategorized"></i>
+                                </button>
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-tag-fill me-2"></i>Vehicule Necategorizate</h6>
+                            </div>
+                            <span class="badge bg-dark text-white rounded-pill">{{ uncategorized_vehicles|length
+                                }}</span>
+                        </div>
+                        <div class="collapse show" id="collapseUncategorized">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 160px;" class="ps-4">
+                                                <div class="form-check m-0">
+                                                    <input type="checkbox" class="form-check-input"
+                                                        id="selectAllVehicles">
+                                                    <label class="form-check-label small fw-bold ms-1"
+                                                        for="selectAllVehicles">Selectează Toate</label>
+                                                </div>
+                                            </th>
+                                            <th>Număr Înmatriculare</th>
+                                            <th>Firmă Actuală</th>
+                                            <th style="width: 300px;">Setează Categorie</th>
+                                            <th class="text-end pe-4">Acțiuni</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if uncategorized_vehicles %}
+                                        {% for vehicle in uncategorized_vehicles %}
+                                        <tr class="fade-in">
+                                            <td class="ps-4">
+                                                <input type="checkbox" name="vehicle_ids" value="{{ vehicle.id }}"
+                                                    class="form-check-input vehicle-checkbox">
+                                            </td>
+                                            <td>
+                                                <span class="fw-bold font-monospace fs-5 text-dark">{{
+                                                    vehicle.plate_number
+                                                    }}</span>
+                                            </td>
+                                            <td>
+                                                {% if vehicle.company %}
+                                                <span
+                                                    class="badge bg-{{ vehicle.company.color }} text-white rounded-pill px-3 shadow-sm"
+                                                    style="font-weight: 600;">
+                                                    {{ vehicle.company.name }}
+                                                </span>
+                                                {% else %}
+                                                <span
+                                                    class="badge bg-danger text-white rounded-pill px-3 shadow-sm">Nealocat</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-2">
+                                                    <div class="custom-dropdown-container" style="flex: 1;">
+                                                        <input type="hidden" class="individual-cat-select"
+                                                            id="cat-select-{{ vehicle.id }}"
+                                                            data-vehicle-id="{{ vehicle.id }}" value="">
+                                                        <button type="button" class="custom-dropdown-btn py-1 px-2"
+                                                            style="font-size: 0.85rem; border-radius: 6px;">
+                                                            <span class="btn-label-content">-- Alege Categorie --</span>
+                                                            <i class="bi bi-chevron-down dropdown-chevron"
+                                                                style="font-size: 0.7rem;"></i>
+                                                        </button>
+                                                        <div class="custom-dropdown-menu">
+                                                            <div class="custom-dropdown-item py-1" data-value="">-- Fără
+                                                                Categorie --</div>
+                                                            {% for cat in categories %}
+                                                            <div class="custom-dropdown-item py-1"
+                                                                data-value="{{ cat.id }}">{{ cat.name }}</div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-success individual-cat-submit"
+                                                        data-vehicle-id="{{ vehicle.id }}">
+                                                        <i class="bi bi-check"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <a href="/admin/vehicle/edit/{{ vehicle.id }}"
+                                                    class="btn btn-sm btn-outline-secondary params-saver">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-5 text-muted">
+                                                <i class="bi bi-check-circle me-1"></i> Toate vehiculele sunt
+                                                categorizate!
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Section 2: Category Management & Vehicle Lists -->
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm border-0 bg-light">
+                            <div class="card-body p-4">
+                                <h5 class="card-title fw-bold mb-3">Adaugă Categorie Utilaje</h5>
+                                <form action="/admin/category/new" method="post">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" name="name" placeholder="Nume" required>
+                                        <label>Nume Categorie</label>
+                                    </div>
+                                    <div class="form-floating mb-3">
+                                        <textarea class="form-control" name="description" placeholder="Desc"
+                                            style="height: 80px"></textarea>
+                                        <label>Descriere (Opțional)</label>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small text-muted">Pictogramă / Iconiță</label>
+                                        <div class="custom-dropdown-container">
+                                            <input type="hidden" name="icon" value="bi-truck">
+                                            <button type="button" class="custom-dropdown-btn">
+                                                <span class="btn-label-content"><i class="bi bi-truck me-2"></i> 🚚
+                                                    Basculantă / 8x4</span>
+                                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                                            </button>
+                                            <div class="custom-dropdown-menu">
+                                                <div class="custom-dropdown-item active" data-value="bi-truck"><i
+                                                        class="bi bi-truck me-2"></i> 🚚 Basculantă / 8x4</div>
+                                                <div class="custom-dropdown-item" data-value="bi-cone-striped"><i
+                                                        class="bi bi-cone-striped me-2"></i> 🚧 Excavator / Buldo</div>
+                                                <div class="custom-dropdown-item" data-value="bi-hammer"><i
+                                                        class="bi bi-hammer me-2"></i> 🛠️ Volă / Încărcător</div>
+                                                <div class="custom-dropdown-item" data-value="bi-car-front-fill"><i
+                                                        class="bi bi-car-front-fill me-2"></i> 🚗 Turism / Auto</div>
+                                                <div class="custom-dropdown-item" data-value="bi-moisture"><i
+                                                        class="bi bi-moisture me-2"></i> 💧 Cifa / Betonieră</div>
+                                                <div class="custom-dropdown-item" data-value="bi-tractor"><i
+                                                        class="bi bi-tractor me-2"></i> 🚜 Tractor / Agricol</div>
+                                                <div class="custom-dropdown-item" data-value="bi-building"><i
+                                                        class="bi bi-building me-2"></i> 🏗️ Utilaj Greu</div>
+                                                <div class="custom-dropdown-item" data-value="bi-tag-fill"><i
+                                                        class="bi bi-tag-fill me-2"></i> 🏷️ Altele (Implicit)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 shadow-sm">
+                                        <i class="bi bi-plus-circle me-2"></i>Creează Categorie
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header bg-white py-3 border-bottom">
+                                <h6 class="mb-0 fw-bold"><i class="bi bi-list-ul me-2"></i>Clasificări Existente <small
+                                        class="text-muted fw-normal ms-1">(Click pe categorie pentru lista de
+                                        vehicule)</small></h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="accordion accordion-flush" id="categoryAccordion">
+                                    {% if categories %}
+                                    {% for cat in categories %}
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed py-3" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#cat-collapse-{{ cat.id }}">
+                                                <div
+                                                    class="d-flex justify-content-between align-items-center w-100 me-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="fw-bold text-dark">{{ cat.name }}</span>
+                                                        {% if cat.description and cat.description != 'None' %}<small
+                                                            class="text-muted ms-2 d-none d-sm-inline">{{
+                                                            cat.description }}</small>{% endif %}
+                                                        <span class="text-primary ms-3 edit-cat-trigger"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editCatModal{{ cat.id }}"
+                                                            onclick="event.stopPropagation();"
+                                                            title="Editează Categoria" style="cursor: pointer;">
+                                                            <i class="bi bi-pencil-square"></i>
+                                                        </span>
+                                                    </div>
+                                                    <span class="badge bg-light text-dark border rounded-pill px-3">{{
+                                                        cat.vehicles|length }} unități</span>
+                                                </div>
+                                            </button>
+                                        </h2>
+                                        <div id="cat-collapse-{{ cat.id }}" class="accordion-collapse collapse"
+                                            data-bs-parent="#categoryAccordion">
+                                            <div class="accordion-body p-0">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover mb-0 align-middle">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th class="ps-4">Nr. Înmatriculare</th>
+                                                                <th>Firmă</th>
+                                                                <th class="text-end pe-4">Acțiuni</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% if cat.vehicles %}
+                                                            {% for v in cat.vehicles %}
+                                                            <tr>
+                                                                <td class="ps-4">
+                                                                    <span class="fw-bold font-monospace">{{
+                                                                        v.plate_number }}</span>
+                                                                </td>
+                                                                <td>
+                                                                    {% if v.company %}
+                                                                    <small
+                                                                        class="badge bg-{{ v.company.color }} text-white px-2 rounded-pill">{{
+                                                                        v.company.name }}</small>
+                                                                    {% else %}
+                                                                    <span
+                                                                        class="badge bg-danger text-white px-2 rounded-pill">Nealocat</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td class="text-end pe-4">
+                                                                    <div class="btn-group">
+                                                                        <a href="/admin/vehicle/edit/{{ v.id }}"
+                                                                            class="btn btn-link btn-sm text-secondary p-0 me-2"><i
+                                                                                class="bi bi-pencil"></i></a>
+                                                                        <form
+                                                                            action="/admin/vehicle/set_category/{{ v.id }}"
+                                                                            method="post" class="d-inline">
+                                                                            <input type="hidden" name="category_id"
+                                                                                value="">
+                                                                            <button type="submit"
+                                                                                class="btn btn-link btn-sm text-danger p-0"
+                                                                                onclick="return confirm('Eliminați vehiculul din această categorie?')"><i
+                                                                                    class="bi bi-x-circle"></i></button>
+                                                                        </form>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                            {% else %}
+                                                            <tr>
+                                                                <td colspan="3"
+                                                                    class="text-center py-4 text-muted small">
+                                                                    Niciun
+                                                                    vehicul în această categorie.</td>
+                                                            </tr>
+                                                            {% endif %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+
+
+                                    {% else %}
+                                    <div class="p-5 text-center text-muted">
+                                        Nu există categorii definite.
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Bulk Action Bar (Vehicles to Category) -->
+<div id="bulkActionBar" class="fixed-bottom p-3 mb-5 mx-auto shadow-lg d-none"
+    style="width: fit-content; min-width: 500px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-radius: 50px; border: 1px solid rgba(255, 193, 7, 0.5); z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 20px;">
+    <form id="bulkCategorizeFormActual" action="/admin/vehicles/bulk_set_category" method="post" class="m-0">
+        <!-- Hidden inputs will be added here by JS -->
+        <div id="bulkHiddenInputs"></div>
+
+        <div class="d-flex align-items-center justify-content-between gap-4 px-3">
+            <div class="d-flex align-items-center">
+                <div class="bg-warning p-2 rounded-circle me-3 text-dark shadow-sm">
+                    <i class="bi bi-tags-fill fs-5"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">Categorisire în Masă</h6>
+                    <small class="text-muted"><span id="selectedCount">0</span> vehicule selectate</small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <div class="custom-dropdown-container" style="min-width: 200px;">
+                    <input type="hidden" name="category_id" value="">
+                    <button type="button" class="custom-dropdown-btn rounded-pill border-warning">
+                        <span class="btn-label-content">-- Mută în Categorie --</span>
+                        <i class="bi bi-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="custom-dropdown-menu">
+                        <div class="custom-dropdown-item" data-value="">-- Fără Categorie --</div>
+                        {% for cat in categories %}
+                        <div class="custom-dropdown-item" data-value="{{ cat.id }}">{{ cat.name }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                    <i class="bi bi-check2-all me-1"></i> Aplică Acum
+                </button>
+                <button type="button" id="cancelBulk" class="btn btn-link text-muted text-decoration-none small">
+                    Renunță
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Floating Bulk Action Bar (Vehicles to Company) -->
+<div id="bulkCompanyBar" class="fixed-bottom p-3 mb-5 mx-auto shadow-lg d-none"
+    style="width: fit-content; min-width: 500px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-radius: 50px; border: 1px solid rgba(220, 53, 69, 0.5); z-index: 2000; left: 50%; transform: translateX(-50%); bottom: 20px;">
+    <form id="bulkCompanyFormActual" action="/admin/vehicles/bulk_set_company" method="post" class="m-0">
+        <!-- Hidden inputs will be added here by JS -->
+        <div id="bulkCompanyHiddenInputs"></div>
+
+        <div class="d-flex align-items-center justify-content-between gap-4 px-3">
+            <div class="d-flex align-items-center">
+                <div class="bg-danger p-2 rounded-circle me-3 text-white shadow-sm">
+                    <i class="bi bi-building-check fs-5"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">Alocare la Firmă</h6>
+                    <small class="text-muted"><span id="selectedCompanyCount">0</span> vehicule selectate</small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <div class="custom-dropdown-container" style="min-width: 200px;">
+                    <input type="hidden" name="target_company_id" value="">
+                    <button type="button" class="custom-dropdown-btn rounded-pill border-danger">
+                        <span class="btn-label-content">-- Alocă la Firmă --</span>
+                        <i class="bi bi-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="custom-dropdown-menu">
+                        <div class="custom-dropdown-item active" data-value="">-- Alege Firma --</div>
+                        {% for c in companies %}
+                        <div class="custom-dropdown-item" data-value="{{ c.id }}">{{ c.name }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
+                    <i class="bi bi-arrow-right-circle me-1"></i> Alocă Acum
+                </button>
+                <button type="button" id="cancelCompanyBulk" class="btn btn-link text-muted text-decoration-none small">
+                    Renunță
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Save scroll position when clicking action buttons
+    document.querySelectorAll('.params-saver').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sessionStorage.setItem('adminScrollPos', window.scrollY);
+        });
+    });
+
+    // Restore scroll position on load if present
+    window.addEventListener('load', () => {
+        const scrollPos = sessionStorage.getItem('adminScrollPos');
+        if (scrollPos) {
+            window.scrollTo(0, parseInt(scrollPos));
+            sessionStorage.removeItem('adminScrollPos');
+        }
+    });
+
+    // Bulk Selection Logic
+    const selectAll = document.getElementById('selectAllVehicles');
+    const checkboxes = document.querySelectorAll('.vehicle-checkbox');
+    const actionBar = document.getElementById('bulkActionBar');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const cancelBulkBtn = document.getElementById('cancelBulk');
+    const bulkActualForm = document.getElementById('bulkCategorizeFormActual');
+    const bulkHiddenInputs = document.getElementById('bulkHiddenInputs');
+
+    function updateActionBar() {
+        const checkedBoxes = document.querySelectorAll('.vehicle-checkbox:checked');
+        const checkedCount = checkedBoxes.length;
+
+        if (checkedCount > 0) {
+            actionBar.classList.remove('d-none');
+            selectedCountSpan.textContent = checkedCount;
+
+            // Rebuild hidden inputs
+            bulkHiddenInputs.innerHTML = '';
+            checkedBoxes.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'vehicle_ids';
+                input.value = cb.value;
+                bulkHiddenInputs.appendChild(input);
+            });
+        } else {
+            actionBar.classList.add('d-none');
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            updateActionBar();
+        });
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateActionBar);
+    });
+
+    if (cancelBulkBtn) {
+        cancelBulkBtn.addEventListener('click', () => {
+            checkboxes.forEach(cb => cb.checked = false);
+            if (selectAll) selectAll.checked = false;
+            updateActionBar();
+        });
+    }
+
+    // Bulk Company Selection Logic
+    const selectAllUnallocated = document.getElementById('selectAllUnallocatedVehicles');
+    const unallocatedCheckboxes = document.querySelectorAll('.unallocated-vehicle-checkbox');
+    const companyBar = document.getElementById('bulkCompanyBar');
+    const selectedCompanyCountSpan = document.getElementById('selectedCompanyCount');
+    const cancelCompanyBulkBtn = document.getElementById('cancelCompanyBulk');
+    const bulkCompanyHiddenInputs = document.getElementById('bulkCompanyHiddenInputs');
+
+    function updateCompanyActionBar() {
+        const checkedBoxes = document.querySelectorAll('.unallocated-vehicle-checkbox:checked');
+        const checkedCount = checkedBoxes.length;
+
+        if (checkedCount > 0) {
+            companyBar.classList.remove('d-none');
+            selectedCompanyCountSpan.textContent = checkedCount;
+
+            bulkCompanyHiddenInputs.innerHTML = '';
+            checkedBoxes.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'vehicle_ids';
+                input.value = cb.value;
+                bulkCompanyHiddenInputs.appendChild(input);
+            });
+        } else {
+            companyBar.classList.add('d-none');
+        }
+    }
+
+    if (selectAllUnallocated) {
+        selectAllUnallocated.addEventListener('change', (e) => {
+            unallocatedCheckboxes.forEach(cb => cb.checked = e.target.checked);
+            updateCompanyActionBar();
+        });
+    }
+
+    unallocatedCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateCompanyActionBar);
+    });
+
+    if (cancelCompanyBulkBtn) {
+        cancelCompanyBulkBtn.addEventListener('click', () => {
+            unallocatedCheckboxes.forEach(cb => cb.checked = false);
+            if (selectAllUnallocated) selectAllUnallocated.checked = false;
+            updateCompanyActionBar();
+        });
+    }
+
+    // Individual category submit logic (to avoid nested forms)
+    document.querySelectorAll('.individual-cat-submit').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const vid = this.getAttribute('data-vehicle-id');
+            const select = document.querySelector(`.individual-cat-select[data-vehicle-id="${vid}"]`);
+            const catId = select.value;
+
+            if (!catId) {
+                alert('Vă rugăm să alegeți o categorie.');
+                return;
+            }
+
+            // Create a temp form to submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/vehicle/set_category/${vid}`;
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'category_id';
+            input.value = catId;
+
+            form.appendChild(input);
+            document.body.appendChild(form);
+
+            // Save scroll pos
+            sessionStorage.setItem('adminScrollPos', window.scrollY);
+
+            form.submit();
+        });
+    });
+
+    // Also save scroll position on bulk form submit
+    if (bulkActualForm) {
+        bulkActualForm.addEventListener('submit', () => {
+            sessionStorage.setItem('adminScrollPos', window.scrollY);
+        });
+    }
+
+    // Uncategorized Collapse Persistence
+    const collapseUncat = document.getElementById('collapseUncategorized');
+    const chevronUncat = document.getElementById('chevronUncategorized');
+    const storageKey = 'uncategorized_collapsed';
+
+    // Restore state
+    if (collapseUncat) {
+        if (localStorage.getItem(storageKey) === 'true') {
+            collapseUncat.classList.remove('show');
+            if (chevronUncat) chevronUncat.classList.replace('bi-chevron-down', 'bi-chevron-right');
+        }
+
+        collapseUncat.addEventListener('shown.bs.collapse', () => {
+            localStorage.setItem(storageKey, 'false');
+            if (chevronUncat) chevronUncat.classList.replace('bi-chevron-right', 'bi-chevron-down');
+        });
+
+        collapseUncat.addEventListener('hidden.bs.collapse', () => {
+            localStorage.setItem(storageKey, 'true');
+            if (chevronUncat) chevronUncat.classList.replace('bi-chevron-down', 'bi-chevron-right');
+        });
+    }
+
+    function confirmDoubleDelete(event, catName, deleteUrl) {
+        event.preventDefault();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Siguranță dublă',
+                text: `Ești sigur că vrei să ștergi categoria "${catName}"? Vehiculele vor rămâne necategorizate.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Da, continuă',
+                cancelButtonText: 'Anulează',
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'CONFIRMARE FINALĂ',
+                        text: 'Ești ABSOLUT sigur? Această acțiune este ireversibilă!',
+                        icon: 'error',
+                        showCancelButton: true,
+                        confirmButtonText: 'DA, ȘTERGE DEFINITIV',
+                        cancelButtonText: 'Nu, m-am răzgândit',
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                    }).then((finalResult) => {
+                        if (finalResult.isConfirmed) {
+                            window.location.href = deleteUrl;
+                        }
+                    });
+                }
+            });
+        } else {
+            if (confirm(`Prima confirmare: Ștergeți categoria "${catName}"?`)) {
+                if (confirm(`A DOUA CONFIRMARE: Sunteți absolut sigur?`)) {
+                    window.location.href = deleteUrl;
+                }
+            }
+        }
+        return false;
+    }
+</script>
+
+<style>
+    #bulkActionBar,
+    #bulkCompanyBar {
+        border-bottom: 4px solid #ffc107 !important;
+        box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3) !important;
+        animation: slideUpFloating 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        pointer-events: auto !important;
+    }
+
+    /* Improved Checkbox Visibility */
+    .form-check-input {
+        width: 1.4em;
+        height: 1.4em;
+        margin-top: 0.05em;
+        background-color: #fff !important;
+        border: 2px solid #6c757d !important;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+    }
+
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+        border-color: #0d6efd !important;
+    }
+
+    #bulkCompanyBar {
+        border-bottom-color: #dc3545 !important;
+    }
+
+    @keyframes slideUpFloating {
+        from {
+            transform: translateX(-50%) translateY(100px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    }
+
+    [data-theme="dark"] #bulkActionBar {
+        background: rgba(30, 33, 36, 0.95) !important;
+        border: 1px solid rgba(255, 193, 7, 0.4) !important;
+        border-bottom-width: 4px !important;
+    }
+
+    #bulkActionBar * {
+        pointer-events: auto;
+    }
+
+    .edit-cat-trigger {
+        transition: all 0.2s ease;
+        opacity: 0.6;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+    }
+
+    .edit-cat-trigger:hover {
+        opacity: 1;
+        background-color: rgba(13, 110, 253, 0.1);
+        transform: scale(1.1);
+    }
+</style>
+
+<!-- Category Edit Modals (Moved to bottom to prevent z-index/accordion interference) -->
+{% for cat in categories %}
+<div class="modal fade" id="editCatModal{{ cat.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editează Categoria</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form action="/admin/category/edit/{{ cat.id }}" method="post">
+                <div class="modal-body p-4">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="name" value="{{ cat.name }}" placeholder="Nume"
+                            required>
+                        <label>Nume Categorie</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" name="description" placeholder="Descriere categorie..."
+                            style="height: 100px">{% if cat.description and cat.description != 'None' %}{{ cat.description }}{% endif %}</textarea>
+                        <label>Descriere (Opțional)</label>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label small text-muted">Pictogramă / Iconiță</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="icon" value="{{ cat.icon }}">
+                            <button type="button" class="custom-dropdown-btn">
+                                <span class="btn-label-content">
+                                    {% if cat.icon == 'bi-truck' %}<i class="bi bi-truck me-2"></i> 🚚 Basculantă / 8x4
+                                    {% elif cat.icon == 'bi-cone-striped' %}<i class="bi bi-cone-striped me-2"></i> 🚧
+                                    Excavator / Buldo
+                                    {% elif cat.icon == 'bi-hammer' %}<i class="bi bi-hammer me-2"></i> 🛠️ Volă /
+                                    Încărcător
+                                    {% elif cat.icon == 'bi-car-front-fill' %}<i class="bi bi-car-front-fill me-2"></i>
+                                    🚗 Turism / Auto
+                                    {% elif cat.icon == 'bi-moisture' %}<i class="bi bi-moisture me-2"></i> 💧 Cifa /
+                                    Betonieră
+                                    {% elif cat.icon == 'bi-tractor' %}<i class="bi bi-tractor me-2"></i> 🚜 Tractor /
+                                    Agricol
+                                    {% elif cat.icon == 'bi-building' %}<i class="bi bi-building me-2"></i> 🏗️ Utilaj
+                                    Greu
+                                    {% else %}<i class="bi bi-tag-fill me-2"></i> 🏷️ Altele (Implicit)
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-truck' else '' }}"
+                                    data-value="bi-truck"><i class="bi bi-truck me-2"></i> 🚚 Basculantă / 8x4</div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-cone-striped' else '' }}"
+                                    data-value="bi-cone-striped"><i class="bi bi-cone-striped me-2"></i> 🚧 Excavator /
+                                    Buldo</div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-hammer' else '' }}"
+                                    data-value="bi-hammer"><i class="bi bi-hammer me-2"></i> 🛠️ Volă / Încărcător</div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-car-front-fill' else '' }}"
+                                    data-value="bi-car-front-fill"><i class="bi bi-car-front-fill me-2"></i> 🚗 Turism /
+                                    Auto</div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-moisture' else '' }}"
+                                    data-value="bi-moisture"><i class="bi bi-moisture me-2"></i> 💧 Cifa / Betonieră
+                                </div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-tractor' else '' }}"
+                                    data-value="bi-tractor"><i class="bi bi-tractor me-2"></i> 🚜 Tractor / Agricol
+                                </div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-building' else '' }}"
+                                    data-value="bi-building"><i class="bi bi-building me-2"></i> 🏗️ Utilaj Greu</div>
+                                <div class="custom-dropdown-item {{ 'active' if cat.icon == 'bi-tag-fill' or not cat.icon else '' }}"
+                                    data-value="bi-tag-fill"><i class="bi bi-tag-fill me-2"></i> 🏷️ Altele (Implicit)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger rounded-pill px-3 btn-sm"
+                        onclick="return confirmDoubleDelete(event, '{{ cat.name }}', '/admin/category/delete/{{ cat.id }}')">
+                        <i class="bi bi-trash me-1"></i> Șterge Categoria
+                    </button>
+                    <div>
+                        <button type="button" class="btn btn-secondary rounded-pill px-4"
+                            data-bs-dismiss="modal">Anulează</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Salvează
+                            Modificările</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 fade-in">
+    <div>
+        <h2 class="mb-1">Parc auto</h2>
+        <p class="text-muted mb-0">Monitorizare consum pe categorii de vehicule</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/admin?tab=categories" class="btn btn-outline-primary shadow-sm">
+            <i class="bi bi-gear-fill me-2"></i>Gestionare Categorii
+        </a>
+    </div>
+</div>
+
+<!-- Category Tabs -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-transparent border-bottom-0 pb-0 pt-3">
+        <ul class="nav nav-tabs card-header-tabs" id="categoryTabs" role="tablist">
+            {% for cat in categories %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if loop.first else '' }} px-4 py-2 position-relative fw-bold"
+                    id="tab-{{ cat.id }}" data-bs-toggle="tab" data-bs-target="#content-{{ cat.id }}" type="button"
+                    role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}"
+                    style="--tab-color: var(--bs-primary);">
+                    <i class="bi {{ cat.icon if cat.icon else 'bi-tag-fill' }} me-2"></i>{{ cat.name }}
+                </button>
+            </li>
+            {% endfor %}
+            {% if not categories %}
+            <li class="nav-item">
+                <span class="nav-link disabled text-muted">Nici o categorie definită</span>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="card-body bg-body p-4 rounded-bottom">
+        <div class="tab-content" id="categoryTabsContent">
+            {% for cat in categories %}
+            <div class="tab-pane fade {{ 'show active' if loop.first else '' }}" id="content-{{ cat.id }}"
+                role="tabpanel">
+
+                <!-- Stats Row -->
+                <div class="row g-4 mb-5">
+                    <!-- Total Consumed Card -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm bg-primary bg-opacity-10">
+                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                <h6 class="text-uppercase fw-bold mb-3 text-primary">Consum Total Categorie</h6>
+                                <div class="display-4 fw-bold mb-2 text-primary">
+                                    {{ cat.total_qty|format_thousands(2) }} <span class="fs-4">L</span>
+                                </div>
+                                <div class="small text-primary text-opacity-75">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Cumulat pentru toate unitățile
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unit Count Card -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border shadow-sm">
+                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                <h6 class="text-uppercase fw-bold mb-3 text-muted">Parc Auto / Utilaje</h6>
+                                <div class="display-4 fw-bold mb-2 text-dark">
+                                    {{ cat.vehicle_count }}
+                                </div>
+                                <div class="small text-muted">
+                                    Unități active în această categorie
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Efficiency Calculator Card -->
+                    <div class="col-md-4">
+                        <div
+                            class="card h-100 border shadow-sm border-warning border-opacity-25 bg-light bg-opacity-50">
+                            <div class="card-body p-3">
+                                <h6 class="text-uppercase fw-bold mb-3 text-warning"><i
+                                        class="bi bi-calculator me-2"></i>Calculator Eficiență</h6>
+
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="small text-muted d-block">Consum Total (L)</label>
+                                        <div class="fw-bold fs-5 text-dark" id="totalDiesel_{{ cat.id }}">{{
+                                            cat.total_qty|format_thousands(2) }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-floating form-floating-sm">
+                                            <input type="number" step="0.01"
+                                                class="form-control form-control-sm calc-input-{{ cat.id }}"
+                                                id="fuelPrice_{{ cat.id }}" placeholder="Pret">
+                                            <label class="small">Preț Motorină</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-floating mb-3">
+                                    <input type="number" step="1" class="form-control calc-input-{{ cat.id }}"
+                                        id="materialQty_{{ cat.id }}" placeholder="MC Material">
+                                    <label>Cantitate Material (MC)</label>
+                                </div>
+
+                                <div class="row g-2 pt-2 border-top">
+                                    <div class="col-6">
+                                        <div class="p-2 rounded bg-white border border-light shadow-sm text-center">
+                                            <small class="text-muted d-block" style="font-size: 0.65rem;">CONSUM /
+                                                MC</small>
+                                            <div class="fw-bold text-primary" id="consumPerMC_{{ cat.id }}">0.00
+                                                <small>L</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 rounded bg-white border border-light shadow-sm text-center">
+                                            <small class="text-muted d-block" style="font-size: 0.65rem;">COST /
+                                                MC</small>
+                                            <div class="fw-bold text-success" id="pretPerMC_{{ cat.id }}">0.00
+                                                <small>RON</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                        (function () {
+                            const catId = "{{ cat.id }}";
+                            const totalDiesel = parseFloat("{{ cat.total_qty }}") || 0;
+                            const fuelPriceInput = document.getElementById('fuelPrice_' + catId);
+                            const materialQtyInput = document.getElementById('materialQty_' + catId);
+                            const consumPerMCDisplay = document.getElementById('consumPerMC_' + catId);
+                            const pretPerMCDisplay = document.getElementById('pretPerMC_' + catId);
+
+                            function calculate() {
+                                const price = parseFloat(fuelPriceInput.value) || 0;
+                                const material = parseFloat(materialQtyInput.value) || 0;
+
+                                if (material > 0) {
+                                    const consum = totalDiesel / material;
+                                    const cost = (totalDiesel * price) / material;
+
+                                    consumPerMCDisplay.innerHTML = consum.toFixed(2) + ' <small>L</small>';
+                                    pretPerMCDisplay.innerHTML = cost.toFixed(2) + ' <small>RON</small>';
+                                } else {
+                                    consumPerMCDisplay.innerHTML = '0.00 <small>L</small>';
+                                    pretPerMCDisplay.innerHTML = '0.00 <small>RON</small>';
+                                }
+                            }
+
+                            fuelPriceInput.addEventListener('input', calculate);
+                            materialQtyInput.addEventListener('input', calculate);
+                        })();
+                    </script>
+                </div>
+
+                <!-- History Table -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Ultimele Alimentări ({{
+                            cat.name }})</h5>
+                        <span class="badge bg-light text-dark border rounded-pill px-3">{{
+                            cat.recent_transactions|length }} înregistrări</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th class="ps-4" style="width: 20%;">Data & Ora</th>
+                                        <th style="width: 20%;">Nr. Înmatriculare</th>
+                                        <th>Firmă / Apartenență</th>
+                                        <th class="text-end pe-4" style="width: 20%;">Cantitate</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="border-top-0">
+                                    {% if cat.recent_transactions %}
+                                    {% for trans in cat.recent_transactions %}
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-medium">{{ trans.date.strftime('%d.%m.%Y') }}</div>
+                                            <small class="text-muted">{{ trans.date.strftime('%H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            <span
+                                                class="fw-bold font-monospace fs-5 {% if trans.vehicle and not trans.vehicle.company_id %}text-danger{% else %}text-dark{% endif %}">
+                                                {{ trans.vehicle.plate_number if trans.vehicle else '???' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if trans.vehicle and trans.vehicle.company %}
+                                            <span
+                                                class="badge bg-{{ trans.vehicle.company.color }} text-white rounded-pill px-3 shadow-sm">
+                                                {{ trans.vehicle.company.name }}
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-danger text-white rounded-pill px-3 shadow-sm">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Nealocat
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <span class="fw-bold font-monospace text-primary fs-5">{{
+                                                trans.quantity|format_thousands(2) }} L</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5 text-muted">
+                                            <div class="mb-3">
+                                                <i class="bi bi-fuel-pump fs-1 opacity-25"></i>
+                                            </div>
+                                            Nici o alimentare înregistrată recent pentru această categorie.
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+
+            {% if not categories %}
+            <div class="text-center py-5">
+                <i class="bi bi-grid-3x3-gap display-1 text-muted opacity-25 mb-4 d-block"></i>
+                <h3>Nici o categorie configurată</h3>
+                <p class="text-muted">Mergeți la setări pentru a defini categorii de utilaje.</p>
+                <a href="/admin?tab=categories" class="btn btn-primary mt-3">Configurează Categorii</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Neon Tab Styling (Matches Stoc Details) */
+    #categoryTabs .nav-link {
+        color: var(--bs-nav-link-color) !important;
+        opacity: 0.7;
+        transition: all 0.3s ease;
+        border: none !important;
+    }
+
+    #categoryTabs .nav-link:hover {
+        opacity: 1;
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+    }
+
+    #categoryTabs .nav-link.active {
+        opacity: 1;
+        background-color: transparent !important;
+        font-weight: 700;
+        color: var(--tab-color) !important;
+    }
+
+    #categoryTabs .nav-link.active::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background-color: var(--tab-color);
+        box-shadow: 0 0 12px var(--tab-color), 0 0 5px var(--tab-color);
+        border-radius: 10px 10px 0 0;
+        animation: neon-pulse 1.5s infinite alternate;
+    }
+
+    @keyframes neon-pulse {
+        from {
+            box-shadow: 0 0 8px var(--tab-color);
+            opacity: 0.8;
+        }
+
+        to {
+            box-shadow: 0 0 15px var(--tab-color);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,29 @@
+===========================================================
+   FUEL MANAGER - Útmutató az EXE készítéshez
+===========================================================
+
+Szia! Mivel a projektet átalakítottuk, most már nagyon egyszerűen készíthetsz belőle futtatható .EXE fájlt.
+
+Lépések:
+----------
+1. Keresd meg a `build.bat` fájlt ebben a mappában.
+2. Kattintson rá duplán.
+3. Várj kb. 1-2 percet. Egy fekete ablak fog futni, ne zárd be!
+
+Eredmény:
+----------
+Ha végzett, létrejön egy új `dist` mappa.
+Ebben találod a `FuelManager.exe` fájlt.
+
+Tesztelés (EXE építés előtt):
+----------
+Ha csak ki szeretnéd próbálni az új verziót anélkül, hogy EXE-t gyártanál:
+1. Kattints duplán a `run.bat` fájlra ebben a mappában.
+2. A program megnyílik a böngésződben (http://127.0.0.1:5000).
+
+Adatbázis:
+----------
+Az adatok mindig itt lesznek:
+%LocalAppData%\FuelManager
+
+Jó munkát! 🚀

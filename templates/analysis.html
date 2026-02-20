@@ -1,0 +1,1527 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-2 fade-in">
+    <!-- Header Section -->
+    <div class="row mb-4 align-items-end">
+        <div class="col-lg-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Acasă</a></li>
+                    <li class="breadcrumb-item active fw-bold text-primary">Analiză Consum & Eficiență</li>
+                </ol>
+            </nav>
+            <h1 class="h2 fw-bold mb-1 tracking-tight">Performanță Operațională</h1>
+            <p class="text-muted mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history"></i> Perioada selectată:
+                <span class="badge bg-light text-dark border fw-medium">{{ start_date|replace('T', ' ') }}</span>
+                <i class="bi bi-arrow-right text-muted"></i>
+                <span class="badge bg-light text-dark border fw-medium">{{ end_date|replace('T', ' ') }}</span>
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <div class="d-flex justify-content-lg-end gap-2">
+                <button class="btn btn-white shadow-sm border rounded-pill px-3" data-bs-toggle="modal"
+                    data-bs-target="#settingsModal">
+                    <i class="bi bi-sliders me-2"></i>Vizibilitate
+                </button>
+                <a href="#" onclick="generateAnalysisPDF(event, '{{ start_date }}', '{{ end_date }}')"
+                    class="btn btn-white shadow-sm border rounded-pill px-3">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Raport PDF
+                </a>
+                <button class="btn btn-primary shadow rounded-pill px-4 action-pulse" data-bs-toggle="modal"
+                    data-bs-target="#mcModal">
+                    <i class="bi bi-plus-lg me-2"></i>Date Producție
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar - Sleek Floating Style -->
+    <div class="card border-0 shadow-sm mb-5 bg-white rounded-4 overflow-hidden">
+        <div class="card-body p-1">
+            <form action="/analysis" method="get" class="row g-0 align-items-center">
+                <div class="col-md-5 border-end py-2 px-4">
+                    <label class="small text-muted text-uppercase fw-bold mb-1 ls-1">De la data</label>
+                    <div class="input-group input-group-clean">
+                        <span class="input-group-text p-0 border-0 bg-transparent text-primary"><i
+                                class="bi bi-calendar-event fs-5"></i></span>
+                        <input type="datetime-local" name="start" class="form-control border-0 bg-transparent fw-medium"
+                            value="{{ start_date }}">
+                    </div>
+                </div>
+                <div class="col-md-5 border-end py-2 px-4">
+                    <label class="small text-muted text-uppercase fw-bold mb-1 ls-1">Până la data</label>
+                    <div class="input-group input-group-clean">
+                        <span class="input-group-text p-0 border-0 bg-transparent text-primary"><i
+                                class="bi bi-calendar-check fs-5"></i></span>
+                        <input type="datetime-local" name="end" class="form-control border-0 bg-transparent fw-medium"
+                            value="{{ end_date }}">
+                    </div>
+                </div>
+                <div class="col-md-2 p-2 px-3">
+                    <button type="submit" class="btn btn-dark w-100 rounded-3 py-2 fw-bold">
+                        <i class="bi bi-funnel-fill me-2"></i>Actualizează
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- KPI Row - Primary Metrics -->
+    <div class="row g-4 mb-5">
+        <!-- 1st: MC Exploatați -> BALAST EXPLOATAT (d) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-emerald-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-cone-striped fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">BRUT</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">BALAST EXPLOATAT</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            mc_values.mc_exploatati|format_thousands(1) }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">MC</span>
+                    </div>
+                    <div class="mt-4 pt-2 border-top border-white border-opacity-10">
+                        <div class="d-flex justify-content-between small opacity-75" style="font-size: 0.8rem;">
+                            <span>Din care sortat:</span>
+                            <span class="fw-bold">{{ mc_values.mc_balast_sortati|format_thousands(1) }} MC</span>
+                        </div>
+                        <div class="d-flex justify-content-between small opacity-75 mt-1" style="font-size: 0.8rem;">
+                            <span>Cantitate stoc stație:</span>
+                            <span class="fw-bold">{{ mc_values.mc_stoc_statie|format_thousands(1) }} MC</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2nd: MC Vânduți -> TOTAL VÂNDUTI (a) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-indigo-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-truck fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">TOTAL</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">TOTAL VÂNDUT (S+B)</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            mc_values.total_mc_vanduti|format_thousands(1)
+                            }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">MC</span>
+                    </div>
+                    <p class="mt-4 mb-0 opacity-75 small">
+                        Din care balast: <span class="fw-bold">{{ mc_values.mc_balast|format_thousands(1) }} MC</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3rd: Diferenta -> SORTURI VÂNDUTE (c) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-cyan-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-box-seam-fill fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">NET</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">SORTURI VÂNDUTE</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            mc_values.mc_sorturi_vanduti|format_thousands(1) }}
+                        </h2>
+                        <span class="fs-4 fw-bold opacity-50">MC</span>
+                    </div>
+                    <div class="mt-4">
+                        {% set vendor_percent = (mc_values.mc_sorturi_vanduti / (mc_values.total_mc_vanduti if
+                        mc_values.total_mc_vanduti > 0 else 1) * 100)|round %}
+                        <div class="progress rounded-pill bg-black bg-opacity-10" style="height: 6px;">
+                            <div class="progress-bar bg-white" role="progressbar" style="width:{{ vendor_percent }}%;">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 small text-white opacity-75">
+                            <span>Pondere Sorturi</span>
+                            <span class="fw-bold text-white">{{ vendor_percent }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4th: Consum Total (Net vs Brut) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-amber-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-fuel-pump-fill fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">FUEL</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">CONSUM NET</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            net_engine_fuel|format_thousands(1) }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">LTR</span>
+                    </div>
+                    <div class="mt-4 pt-2 border-top border-white border-opacity-10">
+                        <div class="d-flex justify-content-between small opacity-75">
+                            <span>Brut: {{ total_engine_fuel|format_thousands(0) }} L</span>
+                            {% if mc_values.consum_extra_8x4 > 0 %}
+                            <span class="text-warning fw-bold">- {{ mc_values.consum_extra_8x4|format_thousands(0)
+                                }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budila Analysis Grid -->
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+        <span class="bg-primary text-white p-1 rounded"><i class="bi bi-pin-map-fill small"></i></span>
+        Eficiență pe Categorii de Utilaje Budila
+    </h5>
+
+    <div class="row g-4 mb-5">
+        {% for item in budila_data %}
+        <div class="col-xxl-3 col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm h-100 category-analysis-card border-start border-primary border-4">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="category-icon-orb bg-light text-primary">
+                                <i class="bi {{ item.icon or 'bi-truck' }} fs-5"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ item.category }}</h6>
+                            </div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-1 rounded-circle hover-bg-light" type="button"
+                                onclick="openBasisModal('{{ item.category }}', this)">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="text-muted small">Consumat:</span>
+                            <span class="fw-bold fs-5 text-dark">{{ item.fuel|format_thousands(1) }} L</span>
+                        </div>
+                        <div class="progress" style="height: 4px; background: rgba(0,0,0,0.05);">
+                            {% set fuel_percent = (item.fuel / (total_engine_fuel if total_engine_fuel > 0 else 1) *
+                            100)|round %}
+                            <div class="progress-bar bg-primary" style="width:{{ fuel_percent }}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-light rounded-4 p-3 mb-3 border border-white text-center">
+                        <span class="text-uppercase tracking-wider fw-bold text-muted" style="font-size: 0.65rem;">Baza
+                            de calcul:</span>
+                        <div class="fw-bold text-dark mt-1 basis-display" data-current="{{ item.basis }}"
+                            data-fuel="{{ item.fuel }}" style="font-size: 0.75rem;">
+                            {{ basis_labels[item.basis] or item.basis }}
+                        </div>
+                    </div>
+
+                    <div class="text-center result-display mt-auto">
+                        {% if item.fuel > 0 %}
+                        <div class="display-5 fw-bold text-primary category-result mb-0 text-nowrap scaling-text">--
+                        </div>
+                        <div class="small fw-bold text-muted text-uppercase tracking-wider">LTR / MC</div>
+                        {% else %}
+                        <div class="py-2">
+                            <i class="bi bi-info-circle text-muted mb-1 d-block"></i>
+                            <span class="badge bg-light text-muted border rounded-pill px-3 fw-normal">Niciun
+                                consum</span>
+                        </div>
+                        <div class="category-result d-none">0</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Ghidfalău Analysis Grid -->
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2 mt-5">
+        <span class="bg-warning text-dark p-1 rounded"><i class="bi bi-geo-alt-fill small"></i></span>
+        Rezumat Operațional Ghidfalău
+    </h5>
+
+    <div class="row g-4 mb-5">
+        <!-- 1. Nisip Exploatat -->
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-amber-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-minecart-loaded fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">PRODUCȚIE</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">NISIP EXPLOATAT GHIDFALĂU</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            mc_values.nisip_exploatat_ghidfalau|format_thousands(1) }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">MC</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Nisip Transportat -->
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-indigo-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-truck fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">LOGISTICĂ</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">NISIP TRANSPORTAT LA BUDILA</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            mc_values.nisip_transportat_budila|format_thousands(1) }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">MC</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Consum Total -->
+        <div class="col-lg-4 col-md-6">
+            <div class="card border-0 shadow-premium h-100 kpi-card bg-cyan-harmonious text-white overflow-hidden">
+                <div class="card-body p-4 position-relative">
+                    <div class="kpi-glass-effect"></div>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div class="kpi-icon-premium kpi-overlay-soft">
+                            <i class="bi bi-fuel-pump-fill fs-4 text-white"></i>
+                        </div>
+                        <span class="badge-premium kpi-overlay-soft text-white">CONSUM NET</span>
+                    </div>
+                    <h6 class="text-white opacity-75 text-uppercase fw-bold tracking-wider mb-2"
+                        style="font-size: 0.75rem;">CONSUM NET GHIDFALĂU</h6>
+                    <div class="d-flex align-items-baseline gap-2 overflow-hidden mb-3">
+                        <h2 class="display-5 fw-bold mb-0 text-white text-nowrap scaling-text">{{
+                            ghidfalau_net_fuel|format_thousands(0) }}</h2>
+                        <span class="fs-4 fw-bold opacity-50">LTR</span>
+                    </div>
+
+                    <div class="pt-3 border-top border-white border-opacity-10">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small opacity-75 text-uppercase fw-bold" style="font-size: 0.65rem;">Consum
+                                Total (Brut)</span>
+                            <span class="fw-bold font-monospace small">{{ ghidfalau_total_fuel|format_thousands(0) }}
+                                L</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center text-warnging">
+                            <span class="small opacity-75 text-uppercase fw-bold" style="font-size: 0.65rem;">Consum
+                                Extra (-):</span>
+                            <span class="fw-bold font-monospace small">-{{
+                                mc_values.consum_extra_ghidfalau|format_thousands(0) }} L</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ghidfalău Analysis Grid -->
+    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+        <span class="bg-warning text-dark p-1 rounded"><i class="bi bi-geo-alt-fill small"></i></span>
+        Eficiență pe Categorii de Utilaje Ghidfalău
+    </h5>
+
+    <div class="row g-4 mb-5">
+        {% for item in ghidfalau_data %}
+        <div class="col-xxl-3 col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm h-100 category-analysis-card border-start border-warning border-4">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="category-icon-orb bg-light text-warning">
+                                <i class="bi {{ item.icon or 'bi-truck' }} fs-5"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ item.category }}</h6>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-link text-muted p-1 rounded-circle hover-bg-light" type="button"
+                                onclick="openBasisModal('{{ item.category }}', this)">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="text-muted small">Consumat:</span>
+                            <span class="fw-bold fs-5 text-dark">{{ item.fuel|format_thousands(1) }} L</span>
+                        </div>
+                        <div class="progress" style="height: 4px; background: rgba(0,0,0,0.05);">
+                            {% set fuel_percent = (item.fuel / (ghidfalau_total_fuel if ghidfalau_total_fuel > 0 else 1)
+                            *
+                            100)|round %}
+                            <div class="progress-bar bg-warning" style="width:{{ fuel_percent }}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-light rounded-4 p-3 mb-3 border border-white text-center">
+                        <span class="text-uppercase tracking-wider fw-bold text-muted" style="font-size: 0.65rem;">Baza
+                            de calcul:</span>
+                        <div class="fw-bold text-dark mt-1 basis-display" data-current="{{ item.basis }}"
+                            data-fuel="{{ item.fuel }}" style="font-size: 0.75rem;">
+                            {{ basis_labels[item.basis] or item.basis }}
+                        </div>
+                    </div>
+
+                    <div class="text-center result-display mt-auto">
+                        {% if item.fuel > 0 %}
+                        <div class="display-5 fw-bold text-warning category-result mb-0 text-nowrap scaling-text">--
+                        </div>
+                        <div class="small fw-bold text-muted text-uppercase tracking-wider">LTR / MC</div>
+                        {% else %}
+                        <div class="py-2">
+                            <i class="bi bi-info-circle text-muted mb-1 d-block"></i>
+                            <span class="badge bg-light text-muted border rounded-pill px-3 fw-normal">Niciun
+                                consum</span>
+                        </div>
+                        <div class="category-result d-none">0</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Final Insight Statement -->
+    <div class="insight-board rounded-5 p-4 p-lg-5 mb-4 shadow-lg overflow-hidden position-relative">
+        <div class="insight-overlay"></div>
+        <div class="row align-items-center position-relative z-1">
+            <div class="col-lg-12 text-white">
+                <div class="row align-items-center">
+                    <div class="col-lg-4 mb-4 mb-lg-0">
+                        <h3 class="fw-bold mb-3 d-flex align-items-center gap-2 text-white">
+                            <i class="bi bi-graph-up-arrow text-success fs-2"></i>
+                            Energy Efficiency Index
+                        </h3>
+                        <p class="fs-6 text-white opacity-75 mb-0">
+                            Performanța energetică agregată a întregii flote.
+                        </p>
+                        <div class="mt-4">
+                            <label class="text-white opacity-75 text-uppercase fw-bold mb-1 d-block"
+                                style="font-size: 0.7rem;">Consum Net Perioadă</label>
+                            <div class="d-flex flex-column gap-1">
+                                <div>
+                                    <small class="text-white opacity-50 text-uppercase fw-bold"
+                                        style="font-size: 0.6rem;">Consum Net Budila:</small>
+                                    <h2 class="fw-bold mb-0 text-white">{{ net_engine_fuel|format_thousands(1) }}
+                                        <small class="fs-5 opacity-75">L</small>
+                                    </h2>
+                                </div>
+                                <div class="mt-2 text-warning">
+                                    <small class="text-uppercase fw-bold opacity-75" style="font-size: 0.6rem;">Consum
+                                        Net Ghidfalău:</small>
+                                    <h4 class="fw-bold mb-0 text-warning">{{ ghidfalau_net_fuel|format_thousands(1) }}
+                                        <small class="fs-6 opacity-75">L</small>
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="d-flex flex-column gap-3">
+                            <div class="efficiency-display-diamond p-3 px-4"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="text-white opacity-80 text-uppercase fw-bold mb-1 ls-1"
+                                            style="font-size: 0.7rem;">Scor / TOTAL MC VÂNDUȚI</div>
+                                        <div class="small text-success fw-bold"><span id="qty-vanduti">0</span> MC
+                                            raportați</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="display-6 fw-bold text-white mb-0 lh-1" id="general-result-vanduti">
+                                            --</div>
+                                        <div class="fw-bold text-success small">LTR / MC</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="efficiency-display-diamond p-3 px-4"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="text-white opacity-80 text-uppercase fw-bold mb-1 ls-1"
+                                            style="font-size: 0.7rem;">Scor / TOTAL BALAST SORTAT</div>
+                                        <div class="small text-success fw-bold"><span id="qty-sortati">0</span> MC
+                                            raportați</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="display-6 fw-bold text-white mb-0 lh-1" id="general-result-sortati">
+                                            --</div>
+                                        <div class="fw-bold text-success small">LTR / MC</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="efficiency-display-diamond p-3 px-4"
+                                style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.2);">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="text-warning opacity-90 text-uppercase fw-bold mb-1 ls-1"
+                                            style="font-size: 0.7rem;">Scor / NISIP EXPLOATAT GHIDFALĂU</div>
+                                        <div class="small text-warning fw-bold"><span id="qty-ghidfalau">0</span> MC
+                                            raportați</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="display-6 fw-bold text-warning mb-0 lh-1"
+                                            id="general-result-ghidfalau">
+                                            --</div>
+                                        <div class="fw-bold text-warning small">LTR / MC</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal - NEW -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-2xl rounded-5 overflow-hidden">
+            <div class="modal-header border-0 bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold m-0 fs-5"><i class="bi bi-sliders me-2"></i>Personalizare Vizualizare
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/analysis/settings?start={{ start_date }}&end={{ end_date }}" method="post">
+                <div class="modal-body p-4 bg-light">
+                    <p class="text-muted mb-4 fs-6">Alege categoriile de utilaje pe care dorești să le monitorizezi în
+                        acest dashboard. Preferințele vor fi salvate pentru această gestiune.</p>
+
+                    <div class="row g-2 mb-4">
+                        {% for cat in all_categories %}
+                        <div class="col-6">
+                            <div
+                                class="form-check card border shadow-sm p-3 h-100 cursor-pointer transition-all hover-blue">
+                                <input class="form-check-input ms-0 me-2" type="checkbox" name="visible_categories"
+                                    value="{{ cat.name }}" id="cat_{{ loop.index }}" {% if cat.name in
+                                    visible_categories %}checked{% endif %}>
+                                <label class="form-check-label fw-bold text-dark mt-1 fs-6" for="cat_{{ loop.index }}">
+                                    {{ cat.name }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="p-3 bg-white border rounded-4 shadow-sm">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" name="exclude_hidden" id="excludeHidden" {%
+                                if exclude_hidden %}checked{% endif %}>
+                            <label class="form-check-label fw-bold fs-6" for="excludeHidden">Exclude categoriile
+                                ascunse din calculul Total</label>
+                            <p class="text-muted mb-0 mt-1 fs-6">Dacă este activat, 'Consum Total General' va
+                                reprezenta suma doar pentru categoriile selectate mai sus.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"
+                        data-bs-dismiss="modal">Închide</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-lg fw-bold">Aplică
+                        Modificările</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MC Entry Modal - Redesigned (v5.6) -->
+<div class="modal fade" id="mcModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-2xl rounded-5 overflow-hidden">
+            <div class="modal-header border-0 bg-dark-gradient text-white p-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle-premium shadow-lg bg-emerald-p d-flex align-items-center justify-content-center p-1"
+                        style="width: 54px; height: 54px;">
+                        <i class="bi bi-database-fill-add fs-4 text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold m-0 tracking-tight fs-4 text-white">Actualizare Date Producție
+                        </h5>
+                        <p class="text-white opacity-75 m-0 ls-1" style="font-size: 0.8rem;">Sincronizare valori
+                            perioadă curentă</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/analysis?start={{ start_date }}&end={{ end_date }}" method="post">
+                <div class="modal-body p-4 p-lg-5 bg-soft-light">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">A. TOTAL BALAST EXPLOATAȚI</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="mc_exploatati" value="{{ mc_values.mc_exploatati }}" required
+                                        id="inputExploatati">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">B. TOTAL BALAST SORTAT</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="mc_balast_sortati" value="{{ mc_values.mc_balast_sortati }}"
+                                        id="inputSortati">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">C. STOC TOTAL BALAST STAȚIE (A-B)</label>
+                                <div class="input-group">
+                                    <div class="form-control form-control-mini bg-light fw-bold text-primary"
+                                        id="calcStocStatie"
+                                        style="line-height: normal; display: flex; align-items: center;">
+                                        {{ mc_values.mc_stoc_statie|format_thousands(1) }}
+                                    </div>
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">D. TRANSP. CAP TRACTOR</label>
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-5">
+                                        <input type="number" step="0.01" class="form-control form-control-mini"
+                                            name="to_cap_tractor" value="{{ mc_values.to_cap_tractor }}"
+                                            id="inputCapTractorTo">
+                                        <div class="text-muted" style="font-size: 0.6rem;">TONE</div>
+                                    </div>
+                                    <div class="col-2 text-center small text-muted">≈</div>
+                                    <div class="col-5">
+                                        <div class="fw-bold text-end" id="calcCapTractorMc">{{
+                                            mc_values.mc_cap_tractor|format_thousands(1) }}</div>
+                                        <div class="text-muted text-end" style="font-size: 0.6rem;">MC</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-3">
+                        <hr class="my-0">
+                        <span class="badge bg-white text-muted border px-3"
+                            style="margin-top: -12px; font-size: 0.65rem;">VÂNZĂRI & CONSUM EXTRA</span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">E. TOTAL VÂNDUȚI (S+B)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="total_mc_vanduti" value="{{ mc_values.total_mc_vanduti }}" required
+                                        id="inputTotalVanduti">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100 border-warning">
+                                <label class="label-premium mb-2 text-warning">H. CONSUM EXTRA BUDILA</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="consum_extra_8x4" value="{{ mc_values.consum_extra_8x4 }}">
+                                    <span class="input-group-text small bg-light">LTR</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">F. TOTAL BALAST VÂNDUT</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="mc_balast" value="{{ mc_values.mc_balast }}" id="inputBalastVandut">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">G. TOTAL SORTURI VÂNDUȚI (E-F)</label>
+                                <div class="input-group">
+                                    <div class="form-control form-control-mini bg-light fw-bold text-success"
+                                        id="calcSorturiVanduti"
+                                        style="line-height: normal; display: flex; align-items: center;">
+                                        {{ mc_values.mc_sorturi_vanduti|format_thousands(1) }}
+                                    </div>
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-3 mt-4">
+                        <hr class="my-0">
+                        <span class="badge bg-white text-muted border px-3"
+                            style="margin-top: -12px; font-size: 0.65rem;">LOGISTICĂ GHIDFALĂU</span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">I. NISIP EXPLOATAT GHIDFALĂU</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="nisip_exploatat_ghidfalau"
+                                        value="{{ mc_values.nisip_exploatat_ghidfalau }}">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100 border-warning">
+                                <label class="label-premium mb-2 text-warning">K. CONSUM EXTRA GHIDFALĂU</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="consum_extra_ghidfalau" value="{{ mc_values.consum_extra_ghidfalau }}">
+                                    <span class="input-group-text small bg-light">LTR</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border shadow-sm p-3 h-100">
+                                <label class="label-premium mb-2">J. NISIP TRANSPORTAT LA BUDILA</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control form-control-mini"
+                                        name="nisip_transportat_budila"
+                                        value="{{ mc_values.nisip_transportat_budila }}">
+                                    <span class="input-group-text small bg-light">MC</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 p-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold"
+                        data-bs-dismiss="modal">Revocare</button>
+                    <button type="submit" class="btn btn-dark rounded-pill px-5 shadow-lg fw-bold">
+                        <i class="bi bi-save2-fill me-2"></i>Salvează Modificările
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Formula Picker Modal -->
+<div class="modal fade" id="basisSelectionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-0 bg-primary text-white p-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0">Selectează Baza</h5>
+                    <p class="small opacity-75 mb-0" id="basisModalCategoryName"></p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-2">
+                <div class="list-group list-group-flush" id="basisListContainer">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    const mcData = JSON.parse('{{ mc_values|tojson|safe }}');
+    // Important: Use NET fuel for general efficiency calculation!
+    const netFuel = parseFloat('{{ net_engine_fuel }}') || 0;
+    const totalFuelBrut = parseFloat('{{ total_engine_fuel }}') || 0;
+    // Use NET fuel for Ghidfalau efficiency calculation too
+    const ghidfalauFuel = parseFloat('{{ ghidfalau_net_fuel }}') || 0;
+
+    const basisLabels = {
+        'mc_exploatati': 'TOTAL BALAST EXPLOATAȚI',
+        'mc_balast_sortati': 'TOTAL BALAST SORTAT',
+        'mc_stoc_statie': 'STOC TOTAL BALAST STAȚIE',
+        'mc_cap_tractor': 'TRANSP. CAP TRACTOR',
+        'total_mc_vanduti': 'TOTAL VÂNDUȚI SORT + BALAST',
+        'mc_balast': 'TOTAL BALAST VÂNDUT',
+        'mc_sorturi_vanduti': 'TOTAL SORTURI VÂNDUȚI',
+        'nisip_exploatat_ghidfalau': 'NISIP EXPLOATAT GHIDFALĂU',
+        'nisip_transportat_budila': 'NISIP TRANSPORTAT LA BUDILA'
+    };
+
+    let currentCategoryContext = null;
+    let currentCategoryElement = null;
+
+    function openBasisModal(categoryName, btn) {
+        currentCategoryContext = categoryName;
+        currentCategoryElement = btn.closest('.card');
+        document.getElementById('basisModalCategoryName').innerText = categoryName;
+
+        const container = document.getElementById('basisListContainer');
+        container.innerHTML = '';
+
+        const currentBasis = currentCategoryElement.querySelector('.basis-display').dataset.current;
+
+        Object.keys(basisLabels).forEach(key => {
+            const label = basisLabels[key];
+            const isActive = (key === currentBasis);
+
+            const item = document.createElement('a');
+            item.href = '#';
+            item.className = `list-group-item list-group-item-action border-0 rounded-4 p-3 d-flex align-items-center justify-content-between ${isActive ? 'bg-primary text-white shadow-sm' : 'hover-blue'}`;
+            item.innerHTML = `
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: ${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)'}">
+                        <i class="bi bi-check-lg" style="opacity: ${isActive ? '1' : '0'}"></i>
+                    </div>
+                    <span class="fw-bold fs-7">${label}</span>
+                </div>
+            `;
+            item.onclick = (e) => {
+                e.preventDefault();
+                confirmBasisChange(key, label);
+            };
+            container.appendChild(item);
+        });
+
+        new bootstrap.Modal(document.getElementById('basisSelectionModal')).show();
+    }
+
+    function confirmBasisChange(newBasis, label) {
+        bootstrap.Modal.getInstance(document.getElementById('basisSelectionModal')).hide();
+
+        Swal.fire({
+            title: 'Schimbare Mod Calcul',
+            html: `Ești sigur că vrei să schimbi modul de calcul pentru <b>${currentCategoryContext}</b> în:<br><br><span class="badge bg-primary fs-6">${label}</span>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#2563eb',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Da, modifică',
+            cancelButtonText: 'Anulează',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                setCategoryBasis(newBasis);
+            }
+        });
+    }
+
+    function setCategoryBasis(newBasis) {
+        const display = currentCategoryElement.querySelector('.basis-display');
+        display.dataset.current = newBasis;
+        display.innerText = basisLabels[newBasis] || newBasis;
+
+        calculateCategory(display);
+
+        fetch('/analysis/save-basis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                basis: newBasis,
+                category: currentCategoryContext
+            })
+        })
+            .then(res => res.json())
+            .then(() => {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Mod de calcul salvat',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            })
+            .catch(err => console.error('Error saving formula:', err));
+    }
+
+    function calculateCategory(display) {
+        const fuel = parseFloat(display.dataset.fuel);
+        const mcKey = display.dataset.current;
+        const mcVal = mcData[mcKey] || 0;
+
+        const resultDisplay = display.closest('.card-body').querySelector('.category-result');
+        if (!resultDisplay) return;
+
+        // Update readable label
+        display.innerText = basisLabels[mcKey] || mcKey;
+
+        if (mcVal > 0) {
+            const result = fuel / mcVal;
+            resultDisplay.innerText = formatNum(result, 4);
+            resultDisplay.classList.remove('text-muted');
+            if (display.closest('.card').classList.contains('border-warning')) {
+                resultDisplay.classList.add('text-warning');
+            } else {
+                resultDisplay.classList.add('text-primary');
+            }
+        } else {
+            resultDisplay.innerText = '0,0000';
+            resultDisplay.classList.add('text-muted');
+            resultDisplay.classList.remove('text-primary');
+            resultDisplay.classList.remove('text-warning');
+        }
+    }
+
+    function calculateGeneral() {
+        const vandutiVal = mcData['total_mc_vanduti'] || 0;
+        const sortatiVal = mcData['mc_balast_sortati'] || 0;
+        const ghidfalauVal = mcData['nisip_exploatat_ghidfalau'] || 0;
+
+        const displayVanduti = document.getElementById('general-result-vanduti');
+        const displaySortati = document.getElementById('general-result-sortati');
+        const displayGhid = document.getElementById('general-result-ghidfalau');
+
+        const qtyVanduti = document.getElementById('qty-vanduti');
+        const qtySortati = document.getElementById('qty-sortati');
+        const qtyGhid = document.getElementById('qty-ghidfalau');
+
+        if (qtyVanduti) qtyVanduti.innerText = formatNum(vandutiVal);
+        if (qtySortati) qtySortati.innerText = formatNum(sortatiVal);
+        if (qtyGhid) qtyGhid.innerText = formatNum(ghidfalauVal);
+
+        if (netFuel > 0 && vandutiVal > 0) {
+            const res = netFuel / vandutiVal;
+            displayVanduti.innerText = formatNum(res, 4);
+        } else {
+            displayVanduti.innerText = '0,0000';
+        }
+
+        if (netFuel > 0 && sortatiVal > 0) {
+            const res = netFuel / sortatiVal;
+            displaySortati.innerText = formatNum(res, 4);
+        } else {
+            displaySortati.innerText = '0,0000';
+        }
+
+        if (ghidfalauFuel > 0 && ghidfalauVal > 0) {
+            const res = ghidfalauFuel / ghidfalauVal;
+            displayGhid.innerText = formatNum(res, 4);
+        } else {
+            displayGhid.innerText = '0,0000';
+        }
+    }
+
+    // Modal Real-time Calculations
+    const modalInputs = document.querySelectorAll('#mcModal input');
+
+    function formatNum(num, decimals) {
+        if (num === null || num === undefined || isNaN(num)) return decimals > 0 ? '0,' + '0'.repeat(decimals) : '0';
+
+        let fixed = decimals !== undefined ? num.toFixed(decimals) : num.toString();
+        let parts = fixed.split('.');
+
+        // Add space as thousands separator
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+        // Join with comma as decimal separator
+        return parts.join(',');
+    }
+
+    modalInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            // g. Total sorturi vânduți = Total (e) - Balast (f)
+            const totalVandut = parseFloat(document.getElementById('inputTotalVanduti').value) || 0;
+            const balastVandut = parseFloat(document.getElementById('inputBalastVandut').value) || 0;
+            const sorturiVandut = totalVandut - balastVandut;
+            const displaySorturi = document.getElementById('calcSorturiVanduti');
+            if (displaySorturi) displaySorturi.innerText = formatNum(sorturiVandut);
+
+            // c. Stoc total balast stație = Exploatat (a) - Sortat (b)
+            const exploatat = parseFloat(document.getElementById('inputExploatati').value) || 0;
+            const sortat = parseFloat(document.getElementById('inputSortati').value) || 0;
+            const stoc = exploatat - sortat;
+            const displayStoc = document.getElementById('calcStocStatie');
+            if (displayStoc) displayStoc.innerText = formatNum(stoc);
+
+            // d. Cap Tractor calculation (same logic)
+            const tone = parseFloat(document.getElementById('inputCapTractorTo').value) || 0;
+            const mcCapTractor = tone / 1.5;
+            const displayCapTractor = document.getElementById('calcCapTractorMc');
+            if (displayCapTractor) displayCapTractor.innerText = formatNum(mcCapTractor);
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.basis-display').forEach(display => calculateCategory(display));
+        calculateGeneral();
+    });
+</script>
+
+<style>
+    /* Premium Dashboard Styles */
+    :root {
+        --emerald-400: #34d399;
+        --emerald-600: #059669;
+        --primary-600: #2563eb;
+        --primary-800: #1e40af;
+        --soft-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -3px rgba(0, 0, 0, 0.04);
+    }
+
+    .hover-bg-light:hover {
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .ls-1 {
+        letter-spacing: 0.5px;
+    }
+
+    .ls-2 {
+        letter-spacing: 2px;
+    }
+
+    .tracking-tight {
+        letter-spacing: -0.025em;
+    }
+
+    .tracking-widest {
+        letter-spacing: 0.1em;
+    }
+
+    .fs-7 {
+        font-size: 0.75rem !important;
+    }
+
+    .border-top-4 {
+        border-top-width: 4px !important;
+    }
+
+    .shadow-soft {
+        box-shadow: var(--soft-shadow);
+    }
+
+    .btn-white {
+        background: white;
+        color: #4b5563;
+    }
+
+    .bg-emerald-gradient {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .bg-primary-gradient {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+
+    .kpi-card {
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-radius: 1.5rem;
+        container-type: inline-size;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .kpi-icon-container {
+        width: 48px;
+        height: 48px;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .bg-info-soft {
+        background-color: rgba(13, 202, 240, 0.1);
+    }
+
+    .bg-warning-soft {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+
+    .border-start-3 {
+        border-left-width: 5px !important;
+    }
+
+    .category-analysis-card {
+        border-radius: 1.5rem;
+        transition: all 0.3s ease;
+        container-type: inline-size;
+    }
+
+    .category-analysis-card:hover {
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .category-icon-orb {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Insight Board styling */
+    .insight-board {
+        background: #0f172a;
+        /* Slate 900 */
+        background-image: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.4) 0, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.3) 0, transparent 50%);
+        min-height: 350px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-input {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-select {
+        background-color: transparent !important;
+        color: white !important;
+    }
+
+    .glass-select option {
+        background-color: #1e293b;
+        color: white;
+    }
+
+    .efficiency-display-diamond {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 3rem;
+        position: relative;
+        backdrop-filter: blur(12px);
+        container-type: inline-size;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .animate-pulse {
+        animation: pulse 0.5s ease-out;
+    }
+
+    .action-pulse {
+        animation: buttonPulse 2s infinite;
+    }
+
+    @keyframes buttonPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+        }
+    }
+
+    .hover-blue:hover {
+        border-color: #3b82f6 !important;
+        background: rgba(37, 99, 235, 0.02);
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    /* Premium UI Components */
+    .bg-dark-gradient {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    .bg-soft-light {
+        background-color: #f8fafc;
+    }
+
+    .bg-emerald-p {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .rounded-circle-premium {
+        border-radius: 1.25rem;
+    }
+
+    .btn-close-custom {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        padding: 0.5rem;
+        font-size: 1.25rem;
+        transition: all 0.2s;
+        border-radius: 50%;
+    }
+
+    .btn-close-custom:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    /* Scaling Text Utilities */
+    .scaling-text {
+        white-space: nowrap !important;
+        overflow: hidden;
+        text-overflow: clip;
+        line-height: normal;
+    }
+
+    .kpi-card .display-5.scaling-text {
+        font-size: clamp(1rem, 16cqw, 2.5rem) !important;
+    }
+
+    .category-result.scaling-text {
+        font-size: clamp(1rem, 18cqw, 2.5rem) !important;
+    }
+
+    .insight-board .scaling-text {
+        font-size: clamp(1.2rem, 14cqw, 2rem) !important;
+    }
+
+    .efficiency-display-diamond .display-1.scaling-text {
+        font-size: clamp(2rem, 30cqw, 5rem) !important;
+    }
+
+    .input-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .input-card:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 8px 10px -6px rgba(59, 130, 246, 0.1) !important;
+        transform: translateY(-2px);
+    }
+
+    .label-premium {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .label-muted {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: #94a3b8;
+    }
+
+    .form-control-mini {
+        width: 100%;
+        border: none;
+        background: #f1f5f9;
+        border-radius: 1rem;
+        padding: 0.5rem 0.8rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .form-control-mini:focus {
+        outline: none;
+        background: white;
+        box-shadow: inset 0 0 0 2px #94a3b8;
+    }
+
+    .btn-white-premium {
+        background: white;
+        border: 1px solid #e2e8f0;
+        color: #64748b;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .btn-white-premium:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .btn-dark-premium {
+        background: #0f172a;
+        color: #f8fafc;
+        border: none;
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.8rem 2.5rem;
+        transition: all 0.3s;
+    }
+
+    .btn-dark-premium:hover {
+        background: #1e293b;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4);
+    }
+
+    .text-slate-900 {
+        color: #0f172a;
+    }
+
+    /* Harmonious Gradient Styles */
+    .bg-emerald-harmonious {
+        background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+    }
+
+    .bg-indigo-harmonious {
+        background: linear-gradient(135deg, #3730a3 0%, #6366f1 100%);
+    }
+
+    .bg-cyan-harmonious {
+        background: linear-gradient(135deg, #155e75 0%, #06b6d4 100%);
+    }
+
+    .bg-amber-harmonious {
+        background: linear-gradient(135deg, #92400e 0%, #f59e0b 100%);
+    }
+
+    .shadow-premium {
+        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2), 0 5px 20px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .kpi-card {
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        border-radius: 1.75rem;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-8px) scale(1.02);
+    }
+
+    .kpi-icon-premium {
+        width: 52px;
+        height: 52px;
+        border-radius: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .kpi-overlay-soft {
+        background: rgba(15, 23, 42, 0.25);
+        /* Elegant Dark Grey with opacity */
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .badge-premium {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 0.4rem 1rem;
+        border-radius: 2rem;
+        letter-spacing: 0.1em;
+        backdrop-filter: blur(4px);
+    }
+
+    .kpi-glass-effect {
+        position: absolute;
+        top: -20%;
+        right: -10%;
+        width: 60%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+        transform: rotate(-15deg);
+        pointer-events: none;
+    }
+
+    .tracking-wider {
+        letter-spacing: 0.05em;
+    }
+
+    .display-5 {
+        font-size: 2.5rem;
+        line-height: 1;
+    }
+
+    /* Form customization */
+    .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.1);
+    }
+
+    .input-group-clean input:focus {
+        box-shadow: none;
+    }
+
+    @media print {
+
+        .btn,
+        .insight-board select,
+        form,
+        .modal {
+            display: none !important;
+        }
+
+        .insight-board {
+            background: #f8fafc !important;
+            color: black !important;
+            border: 1px solid #ddd !important;
+            border-radius: 1rem !important;
+        }
+
+        .insight-board h3,
+        .insight-board p,
+        .efficiency-display-diamond * {
+            color: black !important;
+        }
+
+        .efficiency-display-diamond {
+            border: 1px solid #ccc !important;
+        }
+    }
+
+    /* Dark Mode Overrides for Custom Classes */
+    [data-theme="dark"] .label-premium {
+        color: #cbd5e1 !important;
+        /* Slate 300 */
+    }
+
+    [data-theme="dark"] .label-muted {
+        color: #94a3b8 !important;
+        /* Slate 400 */
+    }
+
+    [data-theme="dark"] .form-control-premium {
+        background-color: #1e293b;
+        color: #f8fafc;
+    }
+
+    [data-theme="dark"] .form-control-premium:focus {
+        background-color: #0f172a;
+        box-shadow: inset 0 0 0 2px #3b82f6;
+    }
+
+    /* Dark Mode Fix for Modal Header which was hardcoded to bg-white */
+    [data-theme="dark"] .modal-header.bg-white {
+        background-color: #1e293b !important;
+        /* Dark Slate Header */
+        border-bottom: 1px solid #334155 !important;
+    }
+
+    [data-theme="dark"] .modal-header .text-dark {
+        color: #f8fafc !important;
+        /* Light text in dark header */
+    }
+
+    [data-theme="dark"] .modal-header .text-muted {
+        color: #94a3b8 !important;
+    }
+</style>
+
+<script>
+    function generateAnalysisPDF(e, start, end) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const originalText = btn.innerHTML;
+
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Se generează...';
+        btn.style.pointerEvents = 'none';
+
+        // Construct URL
+        const url = `/admin/analysis_pdf?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+
+                if (data.status === 'success') {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'PDF Generat!',
+                            html: 'Fișierul a fost salvat în <b>Downloads</b>:<br><code>' + data.filename + '</code>',
+                            timer: 5000,
+                            showConfirmButton: true
+                        });
+                    } else {
+                        alert('Succes! Fișierul a fost salvat în Downloads:\n' + data.filename);
+                    }
+                } else {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Eroare',
+                            text: data.message || 'A apărut o problemă.'
+                        });
+                    } else {
+                        alert('Eroare: ' + (data.message || 'A apărut o problemă.'));
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+                alert('Eroare de conexiune.');
+            });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-success text-white py-3 text-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-building me-2"></i>{{ 'Editare' if company else 'Adăugare' }} Companie
+                </h4>
+            </div>
+            <div class="card-body p-5">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="name"
+                            value="{{ company.name if company else '' }}" placeholder="Nume Companie" required
+                            autofocus>
+                        <label>Denumire Companie</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="cui"
+                            value="{{ company.cui if company and company.cui else '' }}" placeholder="RO123456">
+                        <label>Cod Unic de Înregistrare (CUI)</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" name="address"
+                            value="{{ company.address if company and company.address else '' }}" placeholder="Adresă">
+                        <label>Adresă Sediu</label>
+                    </div>
+
+                    <div class="form-floating mb-4">
+                        <input type="text" class="form-control font-monospace" name="product_code"
+                            value="{{ company.product_code if company and company.product_code else '' }}"
+                            placeholder="000000">
+                        <label>Cod Produs (Pt. Rapoarte)</label>
+                        <div class="form-text">Codul folosit pentru identificarea produsului în rapoartele contabile.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Logo Companie</label>
+                        {% if logo_url %}
+                        <div class="d-flex align-items-center gap-3 mb-3 p-2 bg-light rounded border">
+                            <div class="bg-white p-1 rounded shadow-sm d-flex align-items-center justify-content-center"
+                                style="width: 60px; height: 60px;">
+                                <img src="{{ logo_url }}" alt="Logo" class="img-fluid"
+                                    style="max-height: 100%; max-width: 100%;">
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="small fw-bold text-dark">Logo Curent</div>
+                                <div class="small text-muted">Afișat pe Dashboard</div>
+                            </div>
+                            <div>
+                                <a href="/admin/company/delete_logo/{{ company.id }}"
+                                    class="btn btn-sm btn-danger text-white shadow-sm"
+                                    onclick="return confirmAction(event, 'Sigur doriți să ștergeți logo-ul? Acțiunea este ireversibilă.')">
+                                    <i class="bi bi-trash-fill me-1"></i> Șterge
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <input class="form-control" type="file" name="logo" accept="image/png, image/jpeg">
+                        <div class="form-text">Format acceptat: PNG sau JPG. Se va redimensiona automat pentru snapshot.
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg shadow-sm">
+                            <i class="bi bi-check-circle me-2"></i>Salvează Compania
+                        </button>
+                        <a href="/admin" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Anulează
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

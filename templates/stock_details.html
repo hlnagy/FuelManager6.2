@@ -1,0 +1,1064 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 fade-in">
+    <div>
+        <h2 class="mb-1">Gestionare Stoc</h2>
+        <p class="text-muted mb-0">Administrare cantități și istoric operațiuni</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-dark shadow-sm rounded-pill px-4" onclick="generateStockSnapshot()">
+            <i class="bi bi-camera-fill me-2"></i> Snapshot
+        </button>
+        <a href="/admin/history/undo{% if active_company_id %}?company_id={{ active_company_id }}{% endif %}"
+            class="btn btn-warning shadow-sm" title="Anulează ultima acțiune">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Undo
+        </a>
+        <a href="/admin/history/redo{% if active_company_id %}?company_id={{ active_company_id }}{% endif %}"
+            class="btn btn-info shadow-sm text-white" title="Reface ultima acțiune anulată">
+            <i class="bi bi-arrow-clockwise me-1"></i> Redo
+        </a>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-transparent border-bottom-0 pb-0 pt-3">
+        <ul class="nav nav-tabs card-header-tabs" id="companyTabs" role="tablist">
+            {% for company in companies %}
+            {% set is_active = (active_company_id == company.id) or (active_company_id is none and loop.first) %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if is_active else '' }} px-4 py-2 position-relative fw-bold"
+                    id="tab-{{ company.id }}" data-bs-toggle="tab" data-bs-target="#content-{{ company.id }}"
+                    type="button" role="tab" aria-selected="{{ 'true' if is_active else 'false' }}"
+                    style="--tab-color: {{ company.color_hex }};">
+                    <i class="bi bi-building me-2"></i>{{ company.name }}
+                </button>
+            </li>
+            {% endfor %}
+
+            <li class="nav-item" role="presentation">
+                <button
+                    class="nav-link {{ 'active' if (active_company_id == -1) else '' }} px-4 py-2 position-relative fw-bold {% if unallocated_history %}text-danger{% else %}text-muted{% endif %}"
+                    id="tab-unallocated" data-bs-toggle="tab" data-bs-target="#content-unallocated" type="button"
+                    role="tab" aria-selected="{{ 'true' if (active_company_id == -1) else 'false' }}"
+                    style="{% if unallocated_history %}--tab-color: #dc3545; border-bottom: 2px dashed #dc3545 !important;{% else %}--tab-color: #6c757d;{% endif %}">
+                    <i
+                        class="bi {% if unallocated_history %}bi-exclamation-triangle{% else %}bi-check-circle{% endif %} me-2"></i>Alimentari
+                    nealocate
+                    <span class="badge {% if unallocated_history %}bg-danger{% else %}bg-secondary{% endif %} ms-2">{{
+                        unallocated_history|length }}</span>
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body bg-body p-4 rounded-bottom">
+        <div class="tab-content" id="companyTabsContent">
+            {% if not companies %}
+            <div class="text-center py-5 fade-in">
+                <div class="mb-4">
+                    <i class="bi bi-building-add display-1 text-muted opacity-25"></i>
+                </div>
+                <h3 class="fw-bold text-dark">Nici o firmă configurată</h3>
+                <p class="text-muted mb-4">Pentru a gestiona stocuri și a înregistra operațiuni manuale, trebuie să
+                    adăugați mai întâi o firmă.</p>
+                <a href="/admin/company/new" class="btn btn-primary btn-lg shadow">
+                    <i class="bi bi-plus-circle me-2"></i>Adaugă Prima Firmă
+                </a>
+            </div>
+            {% endif %}
+
+            {% for company in companies %}
+            {% set is_active = (active_company_id == company.id) or (active_company_id is none and loop.first) %}
+            <div class="tab-pane fade {{ 'show active' if is_active else '' }}" id="content-{{ company.id }}"
+                role="tabpanel">
+
+                <!-- Stats & Actions Row -->
+                <div class="row g-4 mb-5">
+                    <!-- Current Stock Card -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm"
+                            style="background-color: {{ stocks[company.id]['color_hex'] }}0D;">
+                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                <h6 class="text-uppercase fw-bold mb-3"
+                                    style="color: {{ stocks[company.id]['color_hex'] }};">Stoc
+                                    Actual Motorină</h6>
+                                <div class="display-4 fw-bold mb-2"
+                                    style="color: {{ stocks[company.id]['color_hex'] }};">
+                                    {{ stocks[company.id]['current']|format_thousands(2) }} <span class="fs-4">L</span>
+                                </div>
+                                <div class="small" style="color: {{ stocks[company.id]['color_hex'] }}A0;">
+                                    <i class="bi bi-clock-history me-1"></i>
+                                    {% if stocks[company.id]['last_update'] %}
+                                    Ultima: {{ stocks[company.id]['last_update'].strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                    Nici o alimentare recentă
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Add Form -->
+                    <div class="col-md-5">
+                        <div class="card h-100 border shadow-sm">
+                            <div class="card-header bg-transparent py-3">
+                                <h6 class="mb-0 fw-bold"><i
+                                        class="bi bi-plus-circle me-2 text-{{ stocks[company.id]['color'] }}"></i>Operațiuni
+                                    Rapide
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <form action="/admin/stock/add_detailed" method="post">
+                                    <input type="hidden" name="company_id" value="{{ company.id }}">
+
+                                    <div class="mb-3">
+                                        <div class="row g-2">
+                                            <div class="col-7">
+                                                <label class="action-label-small ms-1">Operațiune</label>
+                                                <div class="custom-dropdown-container" data-onchange="updatePlaceholder"
+                                                    data-id="{{ company.id }}">
+                                                    <input type="hidden" name="operation_type"
+                                                        id="opType-{{ company.id }}" value="IN">
+                                                    <button type="button" class="custom-dropdown-btn">
+                                                        <span class="btn-label-content"><i
+                                                                class="bi bi-plus-circle text-success me-2"></i>
+                                                            Intrare</span>
+                                                        <i class="bi bi-chevron-down dropdown-chevron"></i>
+                                                    </button>
+                                                    <div class="custom-dropdown-menu">
+                                                        <div class="custom-dropdown-item active" data-value="IN">Intrare
+                                                            motorină</div>
+                                                        <div class="custom-dropdown-item" data-value="OUT">Ieșire
+                                                            motorină</div>
+                                                        <div class="custom-dropdown-item" data-value="INITIAL">Stoc
+                                                            Inițial</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-5">
+                                                <label class="action-label-small ms-1">Cantitate</label>
+                                                <input type="number" step="0.01" class="form-control" name="quantity"
+                                                    id="qty-{{ company.id }}" required placeholder="Cantitate (Litri)">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-floating mb-3">
+                                        <input type="datetime-local" class="form-control" name="date" required
+                                            value="{{ now }}">
+                                        <label>Data și Ora</label>
+                                    </div>
+
+                                    <div class="form-floating mb-3 position-relative">
+                                        <input type="text" class="form-control" name="description"
+                                            id="desc-{{ company.id }}" placeholder="Descriere" list="vehicleList"
+                                            oninput="checkVehicle(this, {{ company.id }})">
+                                        <label id="label-{{ company.id }}">Descriere / Document</label>
+                                        <div id="newBadge-{{ company.id }}"
+                                            class="position-absolute end-0 top-50 translate-middle-y me-3 d-none">
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                <i class="bi bi-plus-circle me-1"></i> Nou - se va înregistra
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary w-100 py-2 fw-medium">
+                                        Înregistrează Operațiunea
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary List -->
+                    <div class="col-md-3">
+                        <div class="card h-100 border shadow-sm">
+                            <div class="card-header bg-transparent py-3">
+                                <h6 class="mb-0 fw-bold">Sumar Total</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-skip-start-circle me-2 text-blue"></i>Inițial</span>
+                                        <span class="fw-bold text-blue">{{
+                                            stocks[company.id]['initial']|format_thousands(2) }}
+                                            L</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-arrow-down-circle me-2 text-success"></i>Intrări</span>
+                                        <span class="fw-bold text-success">+{{
+                                            stocks[company.id]['in']|format_thousands(2) }}
+                                            L</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-arrow-up-circle me-2 text-danger"></i>Consum</span>
+                                        <span class="fw-bold text-danger">-{{
+                                            stocks[company.id]['consumed']|format_thousands(2) }}
+                                            L</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-footer bg-transparent p-3 text-center">
+                                <a href="/reports?company_id={{ company.id }}"
+                                    class="btn btn-outline-secondary btn-sm w-100">
+                                    <i class="bi bi-file-earmark-text me-1"></i> Raport Detaliat
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Table Area -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">Istoric Operațiuni</h5>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill" type="button"
+                            onclick="toggleSelectionMode('{{ company.id }}')">
+                            <i class="bi bi-check2-square me-1"></i> Selectare Multiplă
+                        </button>
+                    </div>
+
+                    <!-- Search / Filter Area -->
+                    <div class="p-3 border-bottom bg-light">
+                        <div class="input-group input-group-clean shadow-sm rounded-pill overflow-hidden border">
+                            <span class="input-group-text bg-white border-0 ps-3">
+                                <i class="bi bi-search text-primary"></i>
+                            </span>
+                            <input type="text" class="form-control border-0 py-2"
+                                placeholder="Caută în istoric (dată, vehicul, tip...)" id="searchInput-{{ company.id }}"
+                                oninput="filterHistory(this, '{{ company.id }}')">
+                            <button class="btn btn-white border-0 text-muted px-3" type="button"
+                                onclick="resetHistoryFilter('{{ company.id }}')">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <!-- No Results Placeholder -->
+                        <div id="noResults-{{ company.id }}" class="text-center py-5 d-none">
+                            <div class="mb-3">
+                                <i class="bi bi-search display-1 text-muted opacity-25"></i>
+                            </div>
+                            <h5 class="text-muted fw-bold">Nici o operațiune nu corespunde filtrului.</h5>
+                            <p class="text-muted small">Încercați alți termeni de căutare sau apăsați pe 'X' pentru a
+                                reseta.</p>
+                        </div>
+                        <form action="/admin/stock/delete_bulk" method="post" id="bulkForm-{{ company.id }}">
+
+                            <!-- Bulk Actions Toolbar -->
+                            <div class="bg-light p-3 border-bottom d-flex align-items-center gap-3"
+                                id="bulkActions-{{ company.id }}" style="display: none;">
+                                <span class="fw-bold text-muted small text-uppercase">Acțiuni Grup:</span>
+                                <button type="submit" class="btn btn-sm btn-danger shadow-sm"
+                                    onclick="return confirmSubmit(event, 'Sigur doriți să ștergeți elementele selectate?');">
+                                    <i class="bi bi-trash me-1"></i> Șterge
+                                </button>
+                                <div class="vr mx-2"></div>
+                                <div class="slim-action-bar">
+                                    <div class="px-3 py-1 bg-light border-end">
+                                        <span class="small fw-bold text-muted"><i class="bi bi-arrow-right-short"></i>
+                                            Mută selecția la:</span>
+                                    </div>
+                                    <div class="custom-dropdown-container flex-grow-1" style="min-width: 200px;">
+                                        <input type="hidden" name="new_company_id" value="">
+                                        <button type="button" class="custom-dropdown-btn">
+                                            <span class="btn-label-content">-- Alege Firma --</span>
+                                            <i class="bi bi-chevron-down dropdown-chevron"></i>
+                                        </button>
+                                        <div class="custom-dropdown-menu">
+                                            {% for c in companies %}
+                                            {% if c.id != company.id %}
+                                            <div class="custom-dropdown-item py-2" data-value="{{ c.id }}">{{ c.name }}
+                                            </div>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <button type="submit" formaction="/admin/stock/move_bulk"
+                                        class="btn-action-slim mx-1">
+                                        Execută Mutarea
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light text-muted small text-uppercase">
+                                        <tr>
+                                            <th style="width: 40px; display: none;"
+                                                class="selection-col-{{ company.id }} text-center">
+                                                <input type="checkbox" class="form-check-input"
+                                                    onclick="toggleAll(this, '{{ company.id }}')">
+                                            </th>
+                                            <th class="ps-4" style="width: 15%;">Data & Ora</th>
+                                            <th class="text-center" style="width: 10%;">Tip</th>
+                                            <th class="text-end" style="width: 15%;">Cantitate</th>
+                                            <th class="ps-5">Detalii / Vehicul</th>
+                                            <th class="text-center pe-4" style="width: 15%;">Acțiuni</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="border-top-0">
+                                        {% for item in stocks[company.id]['history'] %}
+                                        <tr>
+                                            <td style="display: none;"
+                                                class="selection-col-{{ company.id }} text-center">
+                                                <input type="checkbox" name="operation_ids"
+                                                    value="{{ 'trans' if item.type == 'TRANSACTION' else 'op' }}:{{ item.id }}"
+                                                    class="form-check-input chk-{{ company.id }}">
+                                            </td>
+                                            <td class="ps-4 text-nowrap">
+                                                <div class="fw-medium">{{ item.date.strftime('%d.%m.%Y') }}</div>
+                                                <small class="text-muted">{{ item.date.strftime('%H:%M') }}</small>
+                                            </td>
+                                            <td class="text-center">
+                                                {% if item.type == 'TRANSACTION' %}
+                                                <span
+                                                    class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle">CONSUM</span>
+                                                {% elif item.type == 'IN' %}
+                                                <span
+                                                    class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">INTRARE</span>
+                                                {% elif item.type == 'INITIAL' %}
+                                                <span
+                                                    class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle">INIȚIAL</span>
+                                                {% else %}
+                                                <span
+                                                    class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle">{{
+                                                    item.type }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td
+                                                class="fw-bold font-monospace text-end {% if item.type == 'INITIAL' %}text-blue{% elif item.type == 'IN' %}text-success{% endif %}">
+                                                {{
+                                                item.quantity|format_thousands(2) }} L
+                                            </td>
+                                            <td class="ps-5">
+                                                {% if item.is_unallocated %}
+                                                <span class="text-danger fw-medium"><i
+                                                        class="bi bi-exclamation-triangle-fill me-1"></i> {{
+                                                    item.description }}</span>
+                                                <span class="badge bg-danger ms-1">NEALOCAT</span>
+                                                {% else %}
+                                                {% if item.type == 'TRANSACTION' %}
+                                                <i class="bi bi-truck me-1 text-muted"></i>
+                                                {% elif item.type == 'INITIAL' %}
+                                                <i class="bi bi-file-text me-1 text-blue"></i>
+                                                {% elif item.type == 'IN' %}
+                                                <i class="bi bi-file-text me-1 text-success"></i>
+                                                {% else %}
+                                                <i class="bi bi-file-text me-1 text-muted"></i>
+                                                {% endif %}
+                                                <span
+                                                    class="{% if item.type == 'INITIAL' %}text-blue{% elif item.type == 'IN' %}text-success{% endif %}">{{
+                                                    item.description }}</span>
+                                                {% if item.category %}
+                                                <span class="badge bg-light text-dark border ms-2 fw-normal small">{{
+                                                    item.category }}</span>
+                                                {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center pe-4">
+                                                <div class="btn-group btn-group-sm">
+                                                    {% if item.type != 'TRANSACTION' %}
+                                                    <a href="/admin/stock/edit/{{ item.id }}"
+                                                        class="btn btn-outline-secondary" title="Modifică"><i
+                                                            class="bi bi-pencil"></i></a>
+                                                    <a href="/admin/stock/move/op/{{ item.id }}"
+                                                        class="btn btn-outline-secondary" title="Mută"><i
+                                                            class="bi bi-arrow-left-right"></i></a>
+                                                    <a href="/admin/stock/delete_item/op/{{ item.id }}"
+                                                        class="btn btn-outline-danger" title="Șterge"
+                                                        onclick="return confirmAction(event, 'Sigur doriți să ștergeți această înregistrare?');"><i
+                                                            class="bi bi-trash"></i></a>
+                                                    {% else %}
+                                                    <button type="button" onclick="showExisting({{ item.id }})"
+                                                        class="btn btn-outline-secondary" title="Vezi Detalii"><i
+                                                            class="bi bi-eye"></i></button>
+                                                    <a href="/admin/stock/move/trans/{{ item.id }}"
+                                                        class="btn btn-outline-secondary" title="Mută"><i
+                                                            class="bi bi-arrow-left-right"></i></a>
+                                                    <a href="/admin/stock/delete_item/trans/{{ item.id }}"
+                                                        class="btn btn-outline-danger" title="Șterge"
+                                                        onclick="return confirmAction(event, 'Sigur doriți să ștergeți această înregistrare?');"><i
+                                                            class="bi bi-trash"></i></a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+
+            <div class="tab-pane fade {{ 'show active' if (active_company_id == -1) else '' }}" id="content-unallocated"
+                role="tabpanel">
+
+                {% if not unallocated_history %}
+                <div class="text-center py-5 fade-in">
+                    <div class="mb-3">
+                        <div class="d-inline-block p-4 rounded-circle bg-success bg-opacity-10">
+                            <i class="bi bi-check-circle-fill display-3 text-success"></i>
+                        </div>
+                    </div>
+                    <h4 class="text-success fw-bold">Totul este alocat corect!</h4>
+                    <p class="text-muted">Nu există alimentări nealocate momentan. <br>Toate tranzacțiile sunt atribuite
+                        unei firme.</p>
+                </div>
+                {% else %}
+                <!-- Detailed Stats (Mirrors Company View) -->
+                <div class="row g-4 mb-4">
+                    <!-- Current Net Stock -->
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm" style="background-color: #dc35450D;">
+                            <div class="card-body text-center d-flex flex-column justify-content-center p-4">
+                                <h6 class="text-uppercase fw-bold mb-3" style="color: #dc3545;">Stoc Actual Nealocat
+                                </h6>
+                                <div class="display-4 fw-bold mb-2" style="color: #dc3545;">
+                                    {{ unallocated_stats['current']|format_thousands(2) }} <span class="fs-4">L</span>
+                                </div>
+                                <div class="small" style="color: #dc3545A0;">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Reprezintă tranzacții sau intrări fără firmă atribuită
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary List -->
+                    <div class="col-md-6">
+                        <div class="card h-100 border shadow-sm">
+                            <div class="card-header bg-transparent py-3">
+                                <h6 class="mb-0 fw-bold">Sumar Total</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush h-100 justify-content-center">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-skip-start-circle me-2 text-blue"></i>Inițial
+                                            (Nealocat)</span>
+                                        <span class="fw-bold text-blue">{{
+                                            unallocated_stats['initial']|format_thousands(2) }} L</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-arrow-down-circle me-2 text-success"></i>Intrări
+                                            (Nealocate)</span>
+                                        <span class="fw-bold text-success">+{{
+                                            unallocated_stats['in']|format_thousands(2) }} L</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <span><i class="bi bi-arrow-up-circle me-2 text-danger"></i>Consum
+                                            (Nealocat)</span>
+                                        <span class="fw-bold text-danger">-{{
+                                            unallocated_stats['consumed']|format_thousands(2) }} L</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warning Banner -->
+                <div class="alert alert-danger border-danger d-flex align-items-center mb-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+                    <div>
+                        <h5 class="mb-1 fw-bold">Alimentări nealocate</h5>
+                        <p class="mb-0">Aceste alimentări nu sunt atribuite niciunei firme. Puteți să le atribuiți
+                            folosind acțiunile din tabel.</p>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions Form -->
+                <form method="POST" id="unallocatedBulkForm" class="mb-0">
+                    <!-- Floating Bulk Menu -->
+                    <div id="floatingBulkMenu" class="floating-bulk-menu shadow-lg">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="selection-badge">
+                                <span id="selectionCount" class="badge rounded-pill bg-danger">0</span>
+                                <span class="ms-1 fw-bold text-dark small text-uppercase">Selectate</span>
+                            </div>
+
+                            <div class="vr mx-1"></div>
+
+                            <div class="action-buttons d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                    onclick="confirmUnallocatedDelete()">
+                                    <i class="bi bi-trash me-1"></i> Șterge
+                                </button>
+
+                                <div class="input-group input-group-sm w-auto">
+                                    <div class="custom-dropdown-container" style="min-width: 200px;">
+                                        <input type="hidden" name="target_company_id" value="">
+                                        <button type="button" class="custom-dropdown-btn rounded-pill border-danger">
+                                            <span class="btn-label-content">Atribuie la firmă...</span>
+                                            <i class="bi bi-chevron-down dropdown-chevron"></i>
+                                        </button>
+                                        <div class="custom-dropdown-menu">
+                                            <div class="custom-dropdown-item active" data-value="">Atribuie la...</div>
+                                            {% for c in companies %}
+                                            <div class="custom-dropdown-item" data-value="{{ c.id }}">{{ c.name }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <button type="submit" formaction="/admin/stock/allocate_bulk"
+                                        class="btn btn-danger rounded-end-pill px-3"
+                                        onclick="return confirm('Sigur doriți să alocați elementele selectate?');">
+                                        <i class="bi bi-arrow-right-short fs-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn-close ms-2" onclick="deselectAllUnallocated()"
+                                title="Anulează selecția"></button>
+                        </div>
+                    </div>
+
+                    <!-- History Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-danger bg-opacity-10 text-danger small text-uppercase">
+                                <tr>
+                                    <th style="width: 50px;" class="text-center">
+                                        <div class="form-check d-flex justify-content-center">
+                                            <input type="checkbox" class="form-check-input"
+                                                onclick="toggleAllUnallocated(this)" title="Selectează tot">
+                                        </div>
+                                    </th>
+                                    <th class="ps-4" style="width: 15%;">Data & Ora</th>
+                                    <th class="text-center" style="width: 10%;">Tip</th>
+                                    <th class="text-end" style="width: 15%;">Cantitate</th>
+                                    <th class="ps-5">Detalii / Vehicul</th>
+                                    <th class="text-center pe-4" style="width: 15%;">Acțiuni</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-top-0">
+                                {% for item in unallocated_history %}
+                                <tr class="border-start border-danger border-4">
+                                    <td class="text-center">
+                                        <div class="form-check d-flex justify-content-center">
+                                            {% if item.item_type == 'trans' %}
+                                            <input type="checkbox" name="transaction_ids" value="{{ item.id }}"
+                                                class="form-check-input chk-unallocated">
+                                            {% else %}
+                                            <input type="checkbox" name="operation_ids" value="{{ item.id }}"
+                                                class="form-check-input chk-unallocated">
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="ps-4 text-nowrap">
+                                        <div class="fw-medium">{{ item.date.strftime('%d.%m.%Y') }}</div>
+                                        <small class="text-muted">{{ item.date.strftime('%H:%M') }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.item_type == 'trans' %}
+                                        <span class="badge bg-danger rounded-pill px-3 py-2 shadow-sm">
+                                            <i class="bi bi-fuel-pump-fill me-1"></i> ALIMENTARE
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-info text-dark rounded-pill px-3 py-2 shadow-sm">
+                                            <i class="bi bi-database-fill me-1"></i> {{ item.type }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="fw-bold fs-5 text-danger">{{ item.quantity|format_thousands(2) }} L
+                                        </div>
+                                    </td>
+                                    <td class="ps-5">
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if item.item_type == 'trans' %}
+                                            <i class="bi bi-truck text-muted"></i>
+                                            {% else %}
+                                            <i class="bi bi-hdd-stack text-muted"></i>
+                                            {% endif %}
+
+                                            <div>
+                                                <div class="fw-medium">{{ item.description }}</div>
+                                                {% if item.category != 'SISTEM' %}
+                                                <small class="text-muted">{{ item.category }}</small>
+                                                {% endif %}
+                                                <span class="badge bg-warning text-dark ms-2">NEALOCAT</span>
+                                                {% if item.duplicate_info %}
+                                                <div class="mt-1 text-danger small fw-bold">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                    Posibil Duplicat! (Există la: {{ item.duplicate_info.plate }})
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <div class="btn-group">
+                                            {% if item.item_type == 'trans' %}
+                                            <button type="button" onclick="showExisting({{ item.id }})"
+                                                class="btn btn-outline-secondary" title="Vezi Detalii"><i
+                                                    class="bi bi-eye"></i></button>
+                                            {% endif %}
+
+                                            <a href="/admin/stock/move/{{ item.item_type }}/{{ item.id }}"
+                                                class="btn btn-outline-warning" title="Alocă la o firmă"><i
+                                                    class="bi bi-building-check"></i></a>
+                                            <a href="/admin/stock/delete_item/{{ item.item_type }}/{{ item.id }}"
+                                                class="btn btn-outline-danger" title="Șterge"
+                                                onclick="return confirmAction(event, 'Sigur doriți să ștergeți această înregistrare?');"><i
+                                                    class="bi bi-trash"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<datalist id="vehicleList">
+    {% for plate in vehicles_autocomplete %}
+    <option value="{{ plate }}">
+        {% endfor %}
+</datalist>
+
+<script>
+    const existingVehicles = {{ vehicles_autocomplete| tojson if vehicles_autocomplete else '[]' }};
+
+    function updatePlaceholder(companyId) {
+        var select = document.getElementById('opType-' + companyId);
+        var input = document.getElementById('desc-' + companyId);
+        var label = document.getElementById('label-' + companyId);
+        var val = select.value;
+
+        if (val === 'OUT') {
+            input.placeholder = "Număr Înmatriculare / Utilaj";
+            label.innerText = "Număr Înmatriculare / Utilaj";
+        } else {
+            input.placeholder = "Descriere / Nr. Document / Observații";
+            label.innerText = "Descriere / Nr. Document / Observații";
+        }
+        checkVehicle(input, companyId);
+    }
+
+    function checkVehicle(input, companyId) {
+        var select = document.getElementById('opType-' + companyId);
+        var badge = document.getElementById('newBadge-' + companyId);
+        var val = input.value.trim().toUpperCase();
+
+        // Remove special characters for plate matching (allow space and dash)
+        // input.value = input.value.replace(/[^a-zA-Z0-9\s-]/g, '');
+
+        if (select.value === 'OUT' && val.length > 2) {
+            if (!existingVehicles.includes(val)) {
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+        } else {
+            badge.classList.add('d-none');
+        }
+    }
+
+    function toggleAll(source, companyId) {
+        const table = source.closest('table');
+        const checkboxes = table.querySelectorAll('.chk-' + companyId);
+        checkboxes.forEach(cb => {
+            cb.checked = source.checked;
+        });
+    }
+
+    function toggleSelectionMode(companyId) {
+        var cols = document.querySelectorAll('.selection-col-' + companyId);
+        var actionsTop = document.getElementById('bulkActions-' + companyId);
+
+        var isHidden = actionsTop.style.display === 'none';
+        var newDisplay = isHidden ? 'flex' : 'none'; // Flex for the toolbar
+
+        actionsTop.style.display = newDisplay;
+
+        for (var i = 0; i < cols.length; i++) {
+            cols[i].style.display = isHidden ? 'table-cell' : 'none';
+        }
+    }
+
+    function toggleAllUnallocated(source) {
+        const isChecked = source.checked;
+        const checkboxes = document.querySelectorAll('.chk-unallocated');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+
+        // Always update the menu
+        updateFloatingMenu();
+    }
+
+    function deselectAllUnallocated() {
+        const table = document.querySelector('#unallocatedBulkForm table');
+        const checkboxes = table.querySelectorAll('.chk-unallocated');
+        checkboxes.forEach(cb => cb.checked = false);
+        const master = table.querySelector('thead input.form-check-input');
+        if (master) master.checked = false;
+        updateFloatingMenu();
+    }
+
+    function updateFloatingMenu() {
+        const checkboxes = document.querySelectorAll('.chk-unallocated:checked');
+        const menu = document.getElementById('floatingBulkMenu');
+        const countSpan = document.getElementById('selectionCount');
+
+        if (checkboxes.length > 0) {
+            countSpan.innerText = checkboxes.length;
+            menu.classList.add('active');
+        } else {
+            menu.classList.remove('active');
+        }
+    }
+
+    // SHIFT-Click Range Selection logic remains the same
+    let lastChecked = null;
+    document.addEventListener('click', function (e) {
+        // Handle both operations and transactions for shift-click
+        if (e.target.classList.contains('chk-unallocated') || e.target.name === 'operation_ids' || e.target.name === 'transaction_ids') {
+            let checkbox = e.target;
+
+            // If checking a box and holding shift
+            if (e.shiftKey && lastChecked && lastChecked.checked && checkbox.checked) {
+                // Determine scope (company specific or unallocated)
+                let scopeSelector;
+                if (checkbox.classList.contains('chk-unallocated')) {
+                    scopeSelector = '.chk-unallocated';
+                } else {
+                    // Try to extract company ID from class if possible, or just fallback to name
+                    // In company tabs, inputs have class 'chk-{companyId}'
+                    // We can try to find common class
+                    const classes = Array.from(checkbox.classList);
+                    const compClass = classes.find(c => c.startsWith('chk-') && c !== 'chk-unallocated');
+                    if (compClass) scopeSelector = '.' + compClass;
+                }
+
+                if (scopeSelector) {
+                    const checkboxes = Array.from(document.querySelectorAll(scopeSelector));
+                    const start = checkboxes.indexOf(lastChecked);
+                    const end = checkboxes.indexOf(checkbox);
+
+                    if (start !== -1 && end !== -1) {
+                        const min = Math.min(start, end);
+                        const max = Math.max(start, end);
+
+                        for (let i = min; i <= max; i++) {
+                            checkboxes[i].checked = true;
+                        }
+                    }
+                }
+            }
+            lastChecked = checkbox;
+        }
+    });
+
+    function filterHistory(input, companyId) {
+        const query = input.value.toLowerCase().trim();
+        const tableContainer = document.querySelector(`#bulkForm-${companyId} .table-responsive`);
+        const table = tableContainer.querySelector('table');
+        const rows = table.querySelectorAll('tbody tr');
+        const noResults = document.getElementById(`noResults-${companyId}`);
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (visibleCount === 0) {
+            tableContainer.style.display = 'none';
+            noResults.classList.remove('d-none');
+        } else {
+            tableContainer.style.display = 'block';
+            noResults.classList.add('d-none');
+        }
+    }
+
+    function resetHistoryFilter(companyId) {
+        const input = document.getElementById(`searchInput-${companyId}`);
+        input.value = '';
+        filterHistory(input, companyId);
+    }
+
+
+    // Listen for individual checkbox changes
+    document.addEventListener('change', function (e) {
+        if (e.target.classList.contains('form-check-input') && !e.target.onclick) {
+            // If it's a child checkbox (not the master one with onclick)
+            const table = e.target.closest('table');
+            if (table) {
+                const master = table.querySelector('thead input.form-check-input');
+                if (master) {
+                    const allCheckboxes = Array.from(table.querySelectorAll('tbody .form-check-input'));
+                    const checkedCheckboxes = allCheckboxes.filter(cb => cb.checked);
+                    master.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
+                    master.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+                }
+            }
+
+            if (e.target.classList.contains('chk-unallocated')) {
+                updateFloatingMenu();
+            }
+        }
+    });
+
+    // Handle hash navigation (e.g., from dashboard #unallocated link)
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.location.hash === '#unallocated') {
+            const unallocatedTab = document.getElementById('tab-unallocated');
+            if (unallocatedTab) {
+                const tab = new bootstrap.Tab(unallocatedTab);
+                tab.show();
+                // Scroll to top of page
+                window.scrollTo(0, 0);
+            }
+        }
+    });
+    function confirmUnallocatedDelete() {
+        const form = document.getElementById('unallocatedBulkForm');
+        // Check if any check box with class 'chk-unallocated' is checked
+        const checkboxes = form.querySelectorAll('.chk-unallocated:checked');
+
+        if (checkboxes.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Niciun element selectat',
+                text: 'Vă rugăm să bifați cel puțin un element din listă pentru ștergere.',
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Sunteți sigur?',
+            html: "Sigur doriți să <strong>ȘTERGEȚI</strong> elementele selectate?<br>Această acțiune este ireversibilă!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Da, șterge!',
+            cancelButtonText: 'Anulează'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Set the form action dynamically to delete endpoint
+                form.action = "/admin/stock/delete_bulk";
+                form.submit();
+            }
+        });
+    }
+</script>
+
+<style>
+    /* Dynamic Neon Tabs */
+    #companyTabs .nav-link {
+        color: var(--bs-nav-link-color) !important;
+        opacity: 0.7;
+        transition: all 0.3s ease;
+        border: none !important;
+        /* Remove standard borders */
+    }
+
+    #companyTabs .nav-link:hover {
+        opacity: 1;
+        background-color: rgba(var(--bs-light-rgb), 0.5);
+    }
+
+    #companyTabs .nav-link.active {
+        opacity: 1;
+        background-color: transparent !important;
+        font-weight: 700;
+        color: var(--tab-color) !important;
+    }
+
+    /* Improved Checkbox Visibility */
+    .form-check-input {
+        width: 1.4em;
+        height: 1.4em;
+        margin-top: 0.1em;
+        border: 2px solid #6c757d !important;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+    }
+
+    /* Floating Bulk Menu */
+    .floating-bulk-menu {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateZ(0);
+        background: rgba(255, 255, 255, 0.98) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 2px solid #dc3545;
+        /* Stronger border for visibility */
+        box-shadow: 0 15px 45px rgba(220, 53, 69, 0.25);
+        border-radius: 100px;
+        padding: 10px 30px;
+        z-index: 2500;
+        /* Extremely high to stay above everything */
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            visibility 0.3s,
+            transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        width: auto;
+        min-width: 500px;
+        /* Wider for stability */
+        display: block !important;
+        /* Ensure it stays block */
+    }
+
+    .floating-bulk-menu.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(-50%) translateY(-10px) translateZ(0);
+        /* Slight float up */
+        pointer-events: all;
+    }
+
+    /* Aggressive Dropdown Stability */
+    .floating-bulk-menu .form-select {
+        max-width: 220px !important;
+        height: 38px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        background-color: #fff !important;
+        border-color: #dc3545 !important;
+        transition: none !important;
+        /* Disable animations on this specific select */
+        font-weight: 600;
+        color: #dc3545;
+    }
+
+    .floating-bulk-menu .form-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.1) !important;
+        width: 220px !important;
+        /* Keep width fixed on focus */
+    }
+
+    .selection-badge {
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        background: #dc3545;
+        padding: 5px 15px;
+        border-radius: 50px;
+        color: white;
+    }
+
+    #selectionCount {
+        min-width: 24px;
+        height: 24px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+
+    .floating-bulk-menu .btn-close {
+        font-size: 0.7rem;
+        padding: 0.5rem;
+        background-size: 0.7rem;
+    }
+
+    #companyTabs .nav-link.active::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background-color: var(--tab-color);
+        box-shadow: 0 0 12px var(--tab-color), 0 0 5px var(--tab-color);
+        /* Stronger Neon */
+        border-radius: 10px 10px 0 0;
+        animation: neon-pulse 1.5s infinite alternate;
+    }
+
+
+
+    @keyframes neon-pulse {
+        from {
+            box-shadow: 0 0 8px var(--tab-color);
+            opacity: 0.8;
+        }
+
+        to {
+            box-shadow: 0 0 15px var(--tab-color);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+    function generateStockSnapshot() {
+        const btn = document.querySelector('button[onclick="generateStockSnapshot()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Procesare...';
+
+        // Choose the element to capture (main content)
+        const element = document.querySelector('.container-fluid') || document.body;
+
+        html2canvas(element, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            logging: false,
+            ignoreElements: (el) => {
+                // Ignore the snapshot button itself and other UI elements that shouldn't be in a report
+                return el.tagName === 'BUTTON' || el.classList.contains('navbar') || el.classList.contains('btn-group');
+            }
+        }).then(canvas => {
+            const imageData = canvas.toDataURL("image/png");
+
+            fetch('/api/snapshot/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerHTML = originalText;
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Snapshot Salvat!',
+                            html: `Imaginea <b>${data.filename}</b> a fost salvată în <b>Downloads</b>.`,
+                            icon: 'success',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    } else {
+                        Swal.fire('Eroare', data.message, 'error');
+                    }
+                })
+                .catch(err => {
+                    btn.innerHTML = originalText;
+                    Swal.fire('Eroare', 'Eroare server.', 'error');
+                });
+        });
+    }
+</script>
+{% endblock %}

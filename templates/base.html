@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ro" data-theme="{{ current_theme|default('light') }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Fuel Manager v6.2 - Build Timestamp: 2026-02-20 -->
+    <title>Fuel Manager v6.2 - Depozit Budila</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=6.2" rel="stylesheet">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Theme JS (Head to prevent flash) -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SweetAlert2 for nice dialogs -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Custom confirmation dialog replacement
+        function confirmAction(event, message) {
+            event.preventDefault();
+            const targetUrl = event.currentTarget.href;
+
+            Swal.fire({
+                title: 'Fuel Manager v6.2',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545', // Danger Red
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Da, continuă',
+                cancelButtonText: 'Anulează',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = targetUrl;
+                }
+            });
+            return false;
+        }
+
+        // Form submit confirmation
+        function confirmSubmit(event, message) {
+            event.preventDefault();
+            const btn = event.currentTarget;
+            const form = btn.form;
+
+            // Handle formaction override if present on the button
+            if (btn.hasAttribute('formaction')) {
+                form.setAttribute('action', btn.getAttribute('formaction'));
+            }
+
+            Swal.fire({
+                title: 'Fuel Manager v6.2',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Da, execută',
+                cancelButtonText: 'Anulează',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+            return false;
+        }
+    </script>
+</head>
+
+<body class="d-flex flex-column min-vh-100 {% if desktop_mode %}desktop-mode{% endif %}">
+
+    <!-- Modern Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-glass mb-4">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-1 me-2" href="/">
+                <i class="bi bi-fuel-pump-fill text-primary"></i>
+                <span class="fw-bold fs-6">Fuel Manager <small class="text-muted fw-normal"
+                        style="font-size: 0.7em;">v6.2</small></span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto gap-1">
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/">
+                            <i class="bi bi-speedometer2 me-1"></i> Panou
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/admin/stock/details">
+                            <i class="bi bi-box-seam me-1"></i> Stoc
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/machines">
+                            <i class="bi bi-grid-3x3-gap me-1"></i> Parc auto
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/analysis">
+                            <i class="bi bi-bar-chart-line me-1"></i> Analiză Consum
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/data-management">
+                            <i class="bi bi-database-check me-1"></i> Import / Export
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/reports">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Rapoarte
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center text-nowrap" href="/admin">
+                            <i class="bi bi-gear me-1"></i> Admin
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-palette-fill me-1"></i> Teme
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                            <li><button class="dropdown-item d-flex align-items-center" onclick="setTheme('light')"><i
+                                        class="bi bi-sun-fill me-2 text-warning"></i> Luminos (Standard)</button></li>
+                            <li><button class="dropdown-item d-flex align-items-center" onclick="setTheme('dark')"><i
+                                        class="bi bi-moon-stars-fill me-2 text-primary"></i> Întunecat (Soft)</button>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><button class="dropdown-item d-flex align-items-center" onclick="setTheme('budila')"><i
+                                        class="bi bi-hexagon-fill me-2 text-secondary"></i> Budila (Rocky)</button></li>
+                        </ul>
+                    </div>
+
+                    <div class="dropdown">
+                        <button
+                            class="btn btn-primary btn-sm rounded-pill dropdown-toggle d-flex align-items-center gap-2 ps-1 pe-3"
+                            type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="rounded-circle bg-white bg-opacity-25 d-flex align-items-center justify-content-center overflow-hidden"
+                                style="width: 24px; height: 24px;">
+                                {% if active_gestiune and active_gestiune.logo_path %}
+                                <img src="{{ url_for('user_content', filename=active_gestiune.logo_path) }}"
+                                    class="w-100 h-100 object-fit-cover">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-6"></i>
+                                {% endif %}
+                            </div>
+                            <span>
+                                {% if active_gestiune %}
+                                {{ active_gestiune.name }}
+                                {% else %}
+                                Cont
+                                {% endif %}
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                            <li><a class="dropdown-item d-flex align-items-center" href="/select-profile"><i
+                                        class="bi bi-arrow-left-right me-2 text-primary"></i> Schimbă / Admin
+                                    Gestiuni</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><button class="dropdown-item d-flex align-items-center text-danger"
+                                    onclick="shutdownApp()"><i class="bi bi-power me-2"></i> Închide Aplicația</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="container flex-grow-1">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Modern Footer -->
+    <footer class="mt-5">
+        <div class="container text-center text-muted">
+            <p class="mb-1">&copy; 2026 <strong>Fuel Manager v6.2</strong>. Toate drepturile rezervate.</p>
+            <small>Sistem dezvoltat de <span class="text-primary fw-bold">Nagy H Lajos</span></small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Custom Dropdown System -->
+    <style>
+        .custom-dropdown-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-dropdown-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0.5rem 0.85rem;
+            background-color: #fff !important;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #495057;
+            text-align: left;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .custom-dropdown-btn:hover {
+            border-color: #0d6efd;
+            background-color: #f8f9fa !important;
+        }
+
+        .custom-dropdown-btn:focus {
+            outline: none;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        }
+
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            display: none;
+            min-width: 100%;
+            margin-top: 5px;
+            padding: 0.5rem 0;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid rgba(0, 0, 0, .15);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .custom-dropdown-container.show .custom-dropdown-menu {
+            display: block;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .custom-dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 0.7rem 1.2rem;
+            clear: both;
+            font-weight: 500;
+            color: #495057;
+            text-align: inherit;
+            text-decoration: none;
+            white-space: nowrap;
+            background-color: transparent;
+            border: 0;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #f1f3f5;
+            color: #000;
+            padding-left: 1.5rem;
+        }
+
+        .custom-dropdown-item.active {
+            background-color: #e9ecef;
+            color: #0d6efd;
+            font-weight: 700;
+        }
+
+        .dropdown-chevron {
+            transition: transform 0.2s;
+            color: #adb5bd;
+            flex-shrink: 0;
+        }
+
+        .custom-dropdown-container.show .dropdown-chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Specific text colors */
+        .text-purple {
+            color: #6f42c1 !important;
+        }
+
+        /* Slim Action Bar - Refined minimalist style */
+        .slim-action-bar {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 2px;
+            transition: border-color 0.2s;
+        }
+
+        .slim-action-bar:focus-within {
+            border-color: #0d6efd;
+        }
+
+        .slim-action-bar .custom-dropdown-btn {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0.5rem 1rem;
+            min-height: auto;
+        }
+
+        .slim-action-bar .form-control {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0.5rem;
+            background: transparent !important;
+            font-size: 0.95rem;
+        }
+
+        .slim-action-bar .divider {
+            width: 1px;
+            height: 24px;
+            background: #e0e0e0;
+            margin: 0 4px;
+        }
+
+        .action-label-small {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .btn-action-slim {
+            background: #f8f9fa;
+            border: none;
+            color: #0d6efd;
+            font-weight: 600;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-action-slim:hover {
+            background: #0d6efd;
+            color: #fff;
+        }
+
+        /* Premium Input Group Integration - Refined */
+        .premium-input-group {
+            border-radius: 12px;
+            border: 1.5px solid #dee2e6;
+            display: flex;
+            align-items: stretch;
+            background-color: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .premium-input-group:focus-within {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+        }
+
+        .premium-input-group>* {
+            border: none !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+        }
+
+        /* Border radius for first and last elements */
+        .premium-input-group>*:first-child,
+        .premium-input-group>.input-group-text:first-child,
+        .premium-input-group>.custom-dropdown-container:first-child .custom-dropdown-btn {
+            border-top-left-radius: 10px !important;
+            border-bottom-left-radius: 10px !important;
+        }
+
+        .premium-input-group>*:last-child,
+        .premium-input-group>.btn:last-child {
+            border-top-right-radius: 10px !important;
+            border-bottom-right-radius: 10px !important;
+        }
+
+        .premium-input-group .custom-dropdown-container {
+            border-right: 1.5px solid #dee2e6 !important;
+        }
+
+        .premium-input-group .input-group-text {
+            border-right: 1.5px solid #dee2e6 !important;
+            padding: 0 1rem;
+            background-color: #f8f9fa !important;
+        }
+
+        .premium-input-group .btn-execute {
+            border-left: 1.5px solid #dee2e6 !important;
+            padding: 0 1.5rem;
+            font-weight: 700;
+            color: #0d6efd;
+        }
+
+        .premium-input-group .btn-execute:hover {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+        }
+
+        .premium-input-group input.form-control {
+            border: none !important;
+            font-weight: 600;
+        }
+    </style>
+
+    <script>
+        function initializeCustomDropdowns() {
+            document.querySelectorAll('.custom-dropdown-container').forEach(container => {
+                const btn = container.querySelector('.custom-dropdown-btn');
+                const menu = container.querySelector('.custom-dropdown-menu');
+                const hiddenInput = container.querySelector('input[type="hidden"]');
+                const items = container.querySelectorAll('.custom-dropdown-item');
+
+                // Toggle menu
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const isOpen = container.classList.contains('show');
+
+                    // Close all other dropdowns
+                    document.querySelectorAll('.custom-dropdown-container').forEach(c => c.classList.remove('show'));
+
+                    if (!isOpen) {
+                        container.classList.add('show');
+                    }
+                };
+
+                // Item selection
+                items.forEach(item => {
+                    item.onclick = (e) => {
+                        e.stopPropagation();
+                        const val = item.getAttribute('data-value');
+                        const labelHtml = item.innerHTML;
+
+                        hiddenInput.value = val;
+                        btn.querySelector('.btn-label-content').innerHTML = labelHtml;
+
+                        items.forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+
+                        container.classList.remove('show');
+
+                        // Trigger change event if needed
+                        const event = new Event('change', { bubbles: true });
+                        hiddenInput.dispatchEvent(event);
+
+                        // If there's a custom onchange handler
+                        if (container.hasAttribute('data-onchange')) {
+                            const handlerName = container.getAttribute('data-onchange');
+                            if (window[handlerName]) {
+                                window[handlerName](container.getAttribute('data-id'), val);
+                            }
+                        }
+                    };
+                });
+            });
+
+            // Close when clicking outside
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-dropdown-container').forEach(c => c.classList.remove('show'));
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeCustomDropdowns);
+    </script>
+
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ro.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            flatpickr("input[type='datetime-local']", {
+                enableTime: true,
+                dateFormat: "Y-m-d\\TH:i", /* Keeps value format compatible with backend expectection */
+                altInput: true,
+                altFormat: "d.m.Y H:i", /* User friendly 24h display */
+                time_24hr: true,
+                locale: "ro",
+                allowInput: true
+            });
+        });
+    </script>
+    </head>
+
+    <!-- Global Transaction Preview Modal -->
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white border-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <i class="bi bi-info-circle"></i> Detalii Tranzacție Existentă
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="modalBody">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Se încarcă...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4"
+                        data-bs-dismiss="modal">Închide</button>
+                    <a id="editLink" href="#" class="btn btn-primary rounded-pill px-4">
+                        <i class="bi bi-pencil"></i> Modifică
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Tank Capacity Modal -->
+    <div class="modal fade" id="tankCapacityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white border-0 py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-speedometer2 me-2"></i>Setare Capacitate Bazin</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form action="/admin/set_tank_capacity" method="POST">
+                    <div class="modal-body p-4 text-center">
+                        <p class="small text-muted mb-3">Setați capacitatea totală a bazinului comun pentru
+                            <strong>toate companiile</strong>
+                        </p>
+                        <div class="input-group mb-3">
+                            <input type="number" step="0.01" class="form-control text-center fs-4 fw-bold"
+                                name="capacity" id="tankCapValue" required>
+                            <span class="input-group-text bg-light text-muted">Litri</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-2 bg-light">
+                        <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3"
+                            data-bs-dismiss="modal">Anulează</button>
+                        <button type="submit"
+                            class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm">Salvează</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capacity Modal -->
+    <div class="modal fade" id="capacityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white border-0 py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-gear-fill me-2"></i>Setare Capacitate</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form id="capacityForm" method="POST">
+                    <div class="modal-body p-4 text-center">
+                        <p class="small text-muted mb-3">Setați capacitatea maximă a bazinului pentru <br><strong
+                                id="capCompanyName" class="text-dark"></strong></p>
+                        <input type="hidden" id="capCompanyId">
+                        <div class="input-group mb-3">
+                            <input type="number" step="0.01" class="form-control text-center fs-4 fw-bold"
+                                name="capacity" id="capValue" required>
+                            <span class="input-group-text bg-light text-muted">Litri</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-2 bg-light">
+                        <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3"
+                            data-bs-dismiss="modal">Anulează</button>
+                        <button type="submit"
+                            class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm">Salvează</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let transModalObj = null;
+        function showExisting(id) {
+            const body = document.getElementById('modalBody');
+            const editLink = document.getElementById('editLink');
+
+            body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+            editLink.style.display = 'none';
+
+            if (!transModalObj) {
+                transModalObj = new bootstrap.Modal(document.getElementById('transactionModal'));
+            }
+            transModalObj.show();
+
+            fetch('/api/transaction/' + id)
+                .then(r => r.json())
+                .then(data => {
+                    body.innerHTML = `
+                        <div class="list-group list-group-flush gap-2">
+                            <div class="list-group-item border-0 p-0 mb-2">
+                                <p class="text-muted small mb-1">Vehicul</p>
+                                <span class="badge bg-light text-dark fs-6 border">${data.plate}</span>
+                            </div>
+                            <div class="list-group-item border-0 p-0 mb-2 d-flex justify-content-between">
+                                <div>
+                                    <p class="text-muted small mb-1">Data</p>
+                                    <p class="fw-bold mb-0">${data.date}</p>
+                                </div>
+                                <div class="text-end">
+                                    <p class="text-muted small mb-1">Ora</p>
+                                    <p class="fw-bold mb-0">${data.time}</p>
+                                </div>
+                            </div>
+                            <div class="list-group-item border-0 p-0 mb-3">
+                                <p class="text-muted small mb-1">Cantitate</p>
+                                <p class="fs-4 fw-bold text-primary mb-0">${data.quantity.toFixed(2)} L</p>
+                            </div>
+                            <div class="list-group-item border-0 rounded-3 p-3" style="background-color: ${data.company_color}20">
+                                <p class="text-muted small mb-1">Firma Alocată</p>
+                                <p class="fw-bold mb-0" style="color: ${data.company_color}">${data.company}</p>
+                            </div>
+                        </div>
+                    `;
+                    editLink.href = `/admin/transaction/edit/${id}`;
+                    editLink.style.display = 'inline-flex';
+                })
+                .catch(err => {
+                    body.innerHTML = '<div class="alert alert-danger">Nu s-au putut încărca detaliile. S-ar putea ca înregistrarea să aparțină altei gestiuni.</div>';
+                });
+        }
+
+        function shutdownApp() {
+            // Immediate shutdown, no questions asked
+            document.body.style.backgroundColor = "#222";
+            document.body.innerHTML = "<div style='display:flex;align-items:center;justify-content:center;height:100vh;color:white;font-family:sans-serif'><h1>La revedere! 👋</h1></div>";
+
+            // Send shutdown command
+            fetch('/api/shutdown', { method: 'POST' })
+                .then(() => {
+                    setTimeout(() => window.close(), 100);
+                })
+                .catch(() => {
+                    window.close();
+                });
+
+            // Force close fallback
+            setTimeout(() => window.close(), 1000);
+        }
+
+        // Heartbeat Mechanism
+        // Only run if NOT in desktop mode (autoshutdown logic for browsers)
+        {% if not desktop_mode %}
+        setInterval(() => {
+            fetch('/api/heartbeat', { method: 'POST' }).catch(e => { });
+        }, 2000);
+        {% endif %}
+    </script>
+</body>
+
+</html>

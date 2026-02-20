@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: a4 landscape;
+            margin: 1cm;
+
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 0.5cm;
+                margin-left: 1cm;
+                margin-right: 1cm;
+                height: 0.8cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            font-size: 10pt;
+            line-height: 1.2;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .report-title {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .report-period {
+            font-size: 10pt;
+            color: #475569;
+        }
+
+        .summary-box {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            background-color: #f8fafc;
+        }
+
+        .summary-label {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .summary-value {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .summary-unit {
+            font-size: 9pt;
+            color: #94a3b8;
+            font-weight: normal;
+        }
+
+        .data-table th {
+            background-color: #334155;
+            color: #ffffff;
+            font-weight: bold;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 9pt;
+        }
+
+        .data-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 10pt;
+        }
+
+        .section-header {
+            background-color: #f1f5f9;
+            font-weight: bold;
+            padding: 8px 10px;
+            font-size: 11pt;
+            border-left: 4px solid #3b82f6;
+            margin-top: 20px;
+        }
+
+        .header-ghid {
+            border-left-color: #f59e0b;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-accent {
+            color: #2563eb;
+            font-weight: bold;
+        }
+
+        .text-warning {
+            color: #d97706;
+            font-weight: bold;
+        }
+
+        #footerContent {
+            text-align: center;
+            font-size: 8pt;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 5px;
+        }
+
+        .divider {
+            height: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header Area -->
+    <table width="100%">
+        <tr>
+            <td width="200" valign="top">
+                {% if logo_base64 %}<img src="{{ logo_base64 }}" height="50">
+                {% else %}<div style="font-size: 16pt; font-weight: bold; color: #334155;">{{ gestiune_name }}</div>{%
+                endif %}
+            </td>
+            <td align="center">
+                <div class="report-title">RAPORT ANALIZA EFICIENTA</div>
+                <div class="report-period">Perioada: <b>{{ start_date }} - {{ end_date }}</b></div>
+            </td>
+            <td width="200" align="right" valign="top">
+                <div style="font-size: 8pt; color: #94a3b8;">Generat la: {{ generated_at }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <!-- KPI boxes - Page 1 (Budila/General) -->
+    <table width="100%">
+        <tr>
+            <!-- 1. Total Fuel (Reference) -->
+            <td width="33%" style="padding-right: 10px;">
+                <div class="summary-box">
+                    <div class="summary-label">CONSUM TOTAL (NET)</div>
+                    <div class="summary-value">{{ net_fuel|format_thousands(1) }} <span class="summary-unit">LTR</span>
+                    </div>
+                </div>
+            </td>
+
+            <!-- 2. Scor Vanduti -->
+            <td width="33%" style="padding-right: 10px;">
+                <div class="summary-box" style="border-top: 3px solid #3b82f6;">
+                    <div class="summary-label">SCOR / TOTAL MC VANDUTI</div>
+                    <div class="summary-value text-accent">{{ eff_vanduti|format_thousands(4) }} <span
+                            class="summary-unit">L/MC</span></div>
+                    <div style="font-size: 8pt; margin-top: 5px; color: #64748b;">Baza: Total Vanduti ({{
+                        mc_vanduti|format_thousands(0) }} MC)</div>
+                </div>
+            </td>
+
+            <!-- 3. Scor Sortati (NEW) -->
+            <td width="33%">
+                <div class="summary-box" style="border-top: 3px solid #3b82f6;">
+                    <div class="summary-label">SCOR / TOTAL BALAST SORTAT</div>
+                    <div class="summary-value text-accent">{{ eff_sortati|format_thousands(4) }} <span
+                            class="summary-unit">L/MC</span></div>
+                    <div style="font-size: 8pt; margin-top: 5px; color: #64748b;">Baza: Balast Sortat ({{
+                        mc_sortati|format_thousands(0) }} MC)</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    <!-- Budila Table -->
+    <div class="section-header">DETALIU CATEGORII - BUDILA</div>
+    <table class="data-table">
+        <tr>
+            <th width="30%">Categorie Utilaj</th>
+            <th width="15%" align="right">Litri Consumati</th>
+            <th width="15%" align="right">Valoare Baza</th>
+            <th width="25%">Baza de calcul selectata</th>
+            <th width="15%" align="right">Eficienta (L/MC)</th>
+        </tr>
+        {% for item in budila_data %}
+        <tr>
+            <td>{{ item.category }}</td>
+            <td align="right">{{ item.fuel|format_thousands(1) }} L</td>
+            <td align="right">{{ item.mc_val|format_thousands(1) }} MC</td>
+            <td style="color: #64748b; font-size: 9pt;">{{ item.basis_name }}</td>
+            <td align="right" class="text-accent">{{ item.efficiency|format_thousands(4) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- Page Break for Ghidfalau -->
+    {% if ghidfalau_data %}
+
+    <!-- Force Page Break -->
+    <div style="page-break-before: always;"></div>
+
+    <!-- Page 2 Header (Repeated) -->
+    <table width="100%">
+        <tr>
+            <td width="200" valign="top">
+                {% if logo_base64 %}<img src="{{ logo_base64 }}" height="50">
+                {% else %}<div style="font-size: 16pt; font-weight: bold; color: #334155;">{{ gestiune_name }}</div>{%
+                endif %}
+            </td>
+            <td align="center">
+                <div class="report-title">RAPORT ANALIZA EFICIENTA</div>
+                <div class="report-period">Perioada: <b>{{ start_date }} - {{ end_date }}</b></div>
+            </td>
+            <td width="200" align="right" valign="top">
+                <div style="font-size: 8pt; color: #94a3b8;">Generat la: {{ generated_at }}</div>
+            </td>
+        </tr>
+    </table>
+    <div class="divider"></div>
+
+    <!-- Ghidfalau KPI Section -->
+    <table width="100%">
+        <tr>
+            <!-- Ghidfalau Consumption -->
+            <td width="50%" style="padding-right: 10px;">
+                <div class="summary-box">
+                    <div class="summary-label">CONSUM TOTAL GHIDFALAU</div>
+                    <div class="summary-value">{{ total_fuel_ghid|format_thousands(0) }} <span
+                            class="summary-unit">LTR</span>
+                    </div>
+                </div>
+            </td>
+
+            <!-- Ghidfalau Efficiency -->
+            <td width="50%">
+                <div class="summary-box" style="border-top: 3px solid #f59e0b;">
+                    <div class="summary-label">SCOR / NISIP EXPLOATAT GHIDFALAU</div>
+                    <div class="summary-value text-warning">{{ eff_ghid|format_thousands(4) }} <span
+                            class="summary-unit">L/MC</span></div>
+                    <div style="font-size: 8pt; margin-top: 5px; color: #64748b;">Baza: Nisip Exploatat ({{
+                        mc_ghid|format_thousands(0) }} MC)</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+    <div class="section-header header-ghid">DETALIU CATEGORII - GHIDFALAU</div>
+
+    <div class="divider"></div>
+
+    <table class="data-table">
+        <tr>
+            <th width="30%">Categorie Utilaj</th>
+            <th width="15%" align="right">Litri Consumati</th>
+            <th width="15%" align="right">Valoare Baza</th>
+            <th width="25%">Baza de calcul selectata</th>
+            <th width="15%" align="right">Eficienta (L/MC)</th>
+        </tr>
+        {% for item in ghidfalau_data %}
+        <tr>
+            <td>{{ item.category }}</td>
+            <td align="right">{{ item.fuel|format_thousands(1) }} L</td>
+            <td align="right">{{ item.mc_val|format_thousands(1) }} MC</td>
+            <td style="color: #64748b; font-size: 9pt;">{{ item.basis_name }}</td>
+            <td align="right" class="text-warning">{{ item.efficiency|format_thousands(4) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <div id="footerContent">
+        Analiza Performanta Operationala Flota &bull; {{ gestiune_name }} &bull; Pagina <pdf:pagenumber>
+    </div>
+</body>
+
+</html>

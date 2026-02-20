@@ -1,0 +1,7 @@
+flask
+flask-sqlalchemy
+pandas
+fpdf
+xhtml2pdf
+Pillow
+pyinstaller

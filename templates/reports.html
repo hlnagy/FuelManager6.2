@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <!-- Anexa Bon de Consum -->
+    <div class="col-md-10 col-lg-8 col-xl-6 mb-4 d-flex">
+        <div class="card shadow border-0 w-100">
+            <div class="card-header bg-primary text-white py-3 text-center">
+                <h4 class="mb-0" style="color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-weight: 600;"><i
+                        class="bi bi-file-earmark-pdf-fill me-2"></i>Generare Anexă Bon de Consum
+                </h4>
+            </div>
+            <div class="card-body p-5 d-flex flex-column">
+                <p class="text-muted text-center mb-4">Selectați perioada și firma pentru a genera bonurile de consum în
+                    format PDF.</p>
+
+                <form id="form_bonuri" action="/admin/report" method="post" class="d-flex flex-column flex-grow-1">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">De la:</label>
+                            <input type="datetime-local" class="form-control" name="start_date" id="report_start"
+                                required value="{{ default_start }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Până la:</label>
+                            <input type="datetime-local" class="form-control" name="end_date" id="report_end" required
+                                value="{{ default_end }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-uppercase text-muted">Firma</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="company_id" id="report_company" value="">
+                            <button type="button" class="custom-dropdown-btn">
+                                <span class="btn-label-content">-- Toate Firmele --</span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item active" data-value="">-- Toate Firmele --</div>
+                                {% for c in companies %}
+                                <div class="custom-dropdown-item" data-value="{{ c.id }}" {% if
+                                    request.args.get('company_id')|int==c.id %}data-active="true" {% endif %}>
+                                    {{ c.name }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="form-text">Lăsați neselectat pentru raport global (toate firmele).</div>
+                    </div>
+
+                    <!-- Auto-calculated Total -->
+                    <div class="alert alert-info py-2 mb-4 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="small"><i class="bi bi-calculator me-2"></i>Total Combustibil
+                                (Selectat):</span>
+                            <span class="fw-bold fs-5"><span id="total_qty">0</span> L</span>
+                        </div>
+                        <div id="last_report_container"
+                            class="border-top border-info border-opacity-25 mt-2 pt-2 d-none">
+                            <small class="d-flex align-items-center text-info-emphasis" style="font-size: 0.75em;">
+                                <i class="bi bi-clock-history me-2"></i>
+                                <span>Ultimul raport: <strong id="last_report_dates" class="ms-1"></strong></span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase text-muted">Număr Bon Consum</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                            <input type="text" class="form-control" name="bon_number" placeholder="ex. 104" required>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto d-grid">
+                        <button type="submit" class="btn btn-danger btn-lg py-3 shadow-sm">
+                            <i class="bi bi-file-pdf me-2"></i> Generează PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raport Lunar -->
+    <div class="col-md-10 col-lg-8 col-xl-6 mb-4 d-flex">
+        <div class="card shadow border-0 w-100">
+            <div class="card-header bg-success text-white py-3 text-center">
+                <h4 class="mb-0"><i class="bi bi-calendar-month-fill me-2"></i>Raport Lunar</h4>
+            </div>
+            <div class="card-body p-5 d-flex flex-column">
+                <p class="text-muted text-center mb-4">Generează raport lunar complet cu sumar per firmă și istoric
+                    cronologic al tuturor alimentărilor.</p>
+
+                <form id="form_lunar" action="/admin/generate_monthly_report" method="post"
+                    class="d-flex flex-column flex-grow-1">
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">De la:</label>
+                            <input type="datetime-local" class="form-control" name="start_date" required
+                                value="{{ default_start }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Până la:</label>
+                            <input type="datetime-local" class="form-control" name="end_date" required
+                                value="{{ default_end }}">
+                        </div>
+                    </div>
+
+                    <!-- New Pump Series Inputs -->
+                    <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+                        <div class="col-12">
+                            <h6 class="text-muted fw-bold mb-3"><i class="bi bi-speedometer2 me-2"></i>Contoare Pompă
+                            </h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Serie Inițială:</label>
+                            <input type="number" step="0.01" class="form-control" name="initial_series"
+                                placeholder="ex. 12345.00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Serie Finală:</label>
+                            <input type="number" step="0.01" class="form-control" name="final_series"
+                                placeholder="ex. 13000.00" required>
+                        </div>
+                        <div class="col-12 text-end">
+                            <small class="text-muted fst-italic">Diferența va fi calculată automat pe raport.</small>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto d-grid">
+                        <button type="submit" class="btn btn-success btn-lg py-3 shadow-sm">
+                            <i class="bi bi-file-spreadsheet me-2"></i> Generează Raport Lunar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const startInput = document.getElementById('report_start');
+        const endInput = document.getElementById('report_end');
+        const companySelect = document.getElementById('report_company');
+        const totalQtySpan = document.getElementById('total_qty');
+
+        const lastReqDatesSpan = document.getElementById('last_report_dates');
+        const lastReqContainer = document.getElementById('last_report_container');
+
+        // Helper to format iso date string to readable
+        function formatDate(isoStr) {
+            if (!isoStr) return '';
+            const d = new Date(isoStr);
+            //Format: DD.MM.YYYY HH:MM
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hour = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hour}:${min}`;
+        }
+
+        function calculateTotal() {
+            const start = startInput.value;
+            const end = endInput.value;
+            const companyId = companySelect.value;
+
+            if (!start || !end) return;
+
+            // Construct query
+            let url = `/api/report_stats?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+            if (companyId) url += `&company_id=${companyId}`;
+
+            // Show loading state
+            totalQtySpan.style.opacity = '0.5';
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Update total
+                    if (data.total_liters !== undefined) {
+                        totalQtySpan.textContent = parseFloat(data.total_liters).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                    totalQtySpan.style.opacity = '1';
+                })
+                .catch(err => {
+                    console.error(err);
+                    totalQtySpan.style.opacity = '1';
+                });
+        }
+
+        // Listeners for total calculation
+        startInput.addEventListener('change', calculateTotal);
+        endInput.addEventListener('change', calculateTotal);
+
+        // Listener for company change -> fetch defaults THEN calculate
+        companySelect.addEventListener('change', function () {
+            const companyId = this.value;
+
+            // Hide last report default
+            lastReqContainer.classList.add('d-none');
+
+            if (!companyId) {
+                calculateTotal(); // Just recalc generic
+                return;
+            }
+
+            // Fetch defaults only (without dates arg, so we get only meta)
+            fetch(`/api/report_stats?company_id=${companyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.has_saved_dates) {
+                        // Only update if returned valid dates
+                        if (data.company_last_start) startInput.value = data.company_last_start;
+                        if (data.company_last_end) endInput.value = data.company_last_end;
+
+                        // Show last report info
+                        const s = formatDate(data.company_last_start);
+                        const e = formatDate(data.company_last_end);
+                        lastReqDatesSpan.textContent = `${s} - ${e}`;
+                        lastReqContainer.classList.remove('d-none');
+                    }
+                    // Always recalc total after potential update
+                    calculateTotal();
+                })
+                .catch(err => console.error(err));
+        });
+
+        // Calculate initially
+        calculateTotal();
+
+        // PDF Generation Handling (v6.2 Desktop Rebuild)
+        function handlePDFSubmit(e) {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Se generează...';
+            btn.disabled = true;
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+
+                    if (data.status === 'success') {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'PDF Generat!',
+                                html: 'Fișierul a fost salvat în <b>Downloads</b>:<br><code>' + data.filename + '</code>',
+                                timer: 5000,
+                                showConfirmButton: true
+                            });
+                        } else {
+                            alert('Succes! Fișierul a fost salvat în Downloads:\n' + data.filename);
+                        }
+                    } else {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Eroare',
+                                text: data.message || 'A apărut o problemă.'
+                            });
+                        } else {
+                            alert('Eroare: ' + (data.message || 'A apărut o problemă.'));
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('Eroare de conexiune.');
+                });
+        }
+
+        const f1 = document.getElementById('form_bonuri');
+        if (f1) f1.addEventListener('submit', handlePDFSubmit);
+
+        const f2 = document.getElementById('form_lunar');
+        if (f2) f2.addEventListener('submit', handlePDFSubmit);
+
+    });
+</script>
+{% endblock %}

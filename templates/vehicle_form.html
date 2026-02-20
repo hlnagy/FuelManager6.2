@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white py-3 text-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-car-front-fill me-2"></i>{{ 'Editare' if vehicle else 'Adăugare' }} Vehicul
+                </h4>
+            </div>
+            <div class="card-body p-5">
+                <form method="post">
+                    <div class="form-floating mb-4">
+                        <input type="text" class="form-control font-monospace fs-5 text-uppercase" name="plate_number"
+                            value="{{ vehicle.plate_number if vehicle else '' }}" placeholder="AB-01-XYZ" required
+                            autofocus>
+                        <label>Număr Înmatriculare</label>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase text-muted ms-1">Companie Asociată</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="company_id" id="companySelect"
+                                value="{{ vehicle.company_id if vehicle else '' }}">
+                            <button type="button" class="custom-dropdown-btn">
+                                <span class="btn-label-content">
+                                    {% if vehicle and vehicle.company %}
+                                    {{ vehicle.company.name }}
+                                    {% else %}
+                                    -- Fără Companie --
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item {{ 'active' if not vehicle or not vehicle.company_id else '' }}"
+                                    data-value="">-- Fără Companie --</div>
+                                {% for c in companies %}
+                                <div class="custom-dropdown-item {{ 'active' if vehicle and vehicle.company_id == c.id else '' }}"
+                                    data-value="{{ c.id }}">{{ c.name }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-uppercase text-muted ms-1">Categorie Utilaj</label>
+                        <div class="custom-dropdown-container">
+                            <input type="hidden" name="category_id" id="categorySelect"
+                                value="{{ vehicle.category_id if vehicle else '' }}">
+                            <button type="button" class="custom-dropdown-btn">
+                                <span class="btn-label-content">
+                                    {% if vehicle and vehicle.category %}
+                                    {{ vehicle.category.name }}
+                                    {% else %}
+                                    -- Fără Categorie --
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-down dropdown-chevron"></i>
+                            </button>
+                            <div class="custom-dropdown-menu">
+                                <div class="custom-dropdown-item {{ 'active' if not vehicle or not vehicle.category_id else '' }}"
+                                    data-value="">-- Fără Categorie --</div>
+                                {% for cat in categories %}
+                                <div class="custom-dropdown-item {{ 'active' if vehicle and vehicle.category_id == cat.id else '' }}"
+                                    data-value="{{ cat.id }}">{{ cat.name }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                            <i class="bi bi-check-circle me-2"></i>Salvează Vehiculul
+                        </button>
+                        <a href="/admin" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Anulează
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

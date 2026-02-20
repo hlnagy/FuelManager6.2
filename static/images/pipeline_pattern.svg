@@ -1,0 +1,37 @@
+<!-- Industrial Pipeline SVG Pattern -->
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Pipe gradient for 3D effect -->
+    <linearGradient id="pipeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#a8a8a8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#888888;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#707070;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Joint/Connector gradient -->
+    <radialGradient id="jointGradient">
+      <stop offset="0%" style="stop-color:#b0b0b0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#606060;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Horizontal pipes -->
+  <rect x="0" y="40" width="200" height="8" fill="url(#pipeGradient)"/>
+  <rect x="0" y="120" width="200" height="8" fill="url(#pipeGradient)"/>
+  
+  <!-- Vertical pipes -->
+  <rect x="50" y="0" width="8" height="200" fill="url(#pipeGradient)"/>
+  <rect x="140" y="0" width="8" height="200" fill="url(#pipeGradient)"/>
+  
+  <!-- Pipe joints/connectors -->
+  <circle cx="54" cy="44" r="6" fill="url(#jointGradient)" stroke="#505050" stroke-width="0.5"/>
+  <circle cx="54" cy="124" r="6" fill="url(#jointGradient)" stroke="#505050" stroke-width="0.5"/>
+  <circle cx="144" cy="44" r="6" fill="url(#jointGradient)" stroke="#505050" stroke-width="0.5"/>
+  <circle cx="144" cy="124" r="6" fill="url(#jointGradient)" stroke="#505050" stroke-width="0.5"/>
+  
+  <!-- Small valve detail -->
+  <g transform="translate(100, 44)">
+    <rect x="-4" y="-8" width="8" height="16" fill="#888" rx="2"/>
+    <circle cx="0" cy="0" r="3" fill="#a0a0a0" stroke="#606060" stroke-width="1"/>
+  </g>
+</svg>
