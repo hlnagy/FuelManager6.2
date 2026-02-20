@@ -1599,22 +1599,12 @@ def allocate_bulk():
 @app.route('/admin/stock/delete_bulk', methods=['POST'])
 def delete_stock_bulk():
     from models import StockOperation, Transaction
+    from services import HistoryService
     
     # 1. Try to get items from the "Unified" list (Company Tab style: "type:id")
     items = request.form.getlist('operation_ids')
     
     # 2. Try to get items from separate lists (Unallocated Tab style)
-    raw_op_ids = request.form.getlist('operation_ids') # This might clash if named same. 
-    # Actually, in company tab it is named 'operation_ids' too.
-    # But in company tab values are "op:1", "trans:2".
-    # In unallocated tab, I named inputs "transaction_ids" (value=ID) and "operation_ids" (value=ID).
-    # So 'operation_ids' might contain mixed formats or just IDs.
-    
-    # Let's look at what we receive.
-    # If we receive "15" -> it's an operation ID (from unallocated tab)
-    # If we receive "op:15" -> it's an operation ID (from company tab)
-    # If we receive NOTHING in operation_ids but have 'transaction_ids' -> unallocated tab.
-    
     trans_ids_from_form = request.form.getlist('transaction_ids')
     
     op_ids_to_delete = []
@@ -1632,19 +1622,16 @@ def delete_stock_bulk():
                 itemId = int(id_str)
                 if type_str == 'op':
                     op_ids_to_delete.append(itemId)
-                    if not company_id: 
-                        op = StockOperation.query.filter_by(id=itemId, gestiune_id=gid).first()
-                        if op: company_id = op.company_id
+                    op = StockOperation.query.filter_by(id=itemId, gestiune_id=gid).first()
+                    if op and not company_id: company_id = op.company_id
                 elif type_str == 'trans':
                     trans_ids_to_delete.append(itemId)
-                    if not company_id:
-                        t = Transaction.query.filter_by(id=itemId, gestiune_id=gid).first()
-                        if t: company_id = t.company_id
+                    t = Transaction.query.filter_by(id=itemId, gestiune_id=gid).first()
+                    if t and not company_id: company_id = t.company_id
             except ValueError:
                 continue
         else:
             # Unallocated Tab Format (it uses 'operation_ids' for ops only)
-            # PROBABLY just an ID.
             try:
                 itemId = int(item)
                 op_ids_to_delete.append(itemId)
@@ -1658,18 +1645,97 @@ def delete_stock_bulk():
         except ValueError:
             continue
             
+    # LOG ACTIONS BEFORE DELETE (for Undo)
+    deleted_count = 0
     if op_ids_to_delete:
-        StockOperation.query.filter(StockOperation.id.in_(op_ids_to_delete)).delete(synchronize_session=False)
+        ops = StockOperation.query.filter(StockOperation.id.in_(op_ids_to_delete)).all()
+        for op in ops:
+            HistoryService.log_action('StockOperation', op.id, 'DELETE', op, gestiune_id=gid)
+            db.session.delete(op)
+            deleted_count += 1
     
     if trans_ids_to_delete:
-        Transaction.query.filter(Transaction.id.in_(trans_ids_to_delete)).delete(synchronize_session=False)
+        transactions = Transaction.query.filter(Transaction.id.in_(trans_ids_to_delete)).all()
+        for t in transactions:
+            HistoryService.log_action('Transaction', t.id, 'DELETE', t, gestiune_id=gid)
+            db.session.delete(t)
+            deleted_count += 1
         
     db.session.commit()
     
-    flash("Elementele selectate au fost șterse.", "success")
+    flash(f"{deleted_count} elemente au fost șterse.", "success")
     if company_id:
          return redirect(f'/admin/stock/details?company_id={company_id}')
          
+    return redirect('/admin/stock/details')
+
+@app.route('/admin/stock/rename_vehicle_bulk', methods=['POST'])
+def rename_vehicle_bulk():
+    from models import StockOperation, Transaction, Vehicle
+    from services import HistoryService
+    
+    gid = session.get('gestiune_id')
+    new_plate = request.form.get('new_plate', '').strip().upper()
+    
+    if not new_plate:
+        flash('Introduceți un număr de înmatriculare valid.', 'warning')
+        return redirect('/admin/stock/details')
+
+    # Find or Create Vehicle in this gestiune
+    v = Vehicle.query.filter_by(plate_number=new_plate, gestiune_id=gid).first()
+    if not v:
+        v = Vehicle(plate_number=new_plate, gestiune_id=gid)
+        db.session.add(v)
+        db.session.flush()
+
+    # Get items
+    items = request.form.getlist('operation_ids')
+    trans_ids_from_form = request.form.getlist('transaction_ids')
+    
+    count = 0
+    company_id = None
+    
+    # Process mixed items (Company Tab)
+    for item in items:
+        if ':' in item:
+            type_str, id_str = item.split(':')
+            itemId = int(id_str)
+            if type_str == 'trans':
+                t = Transaction.query.filter_by(id=itemId, gestiune_id=gid).first()
+                if t:
+                    HistoryService.log_action('Transaction', t.id, 'UPDATE', t, gestiune_id=gid)
+                    t.vehicle_id = v.id
+                    if v.company_id: t.company_id = v.company_id
+                    if not company_id: company_id = t.company_id
+                    count += 1
+            else: # op
+                op = StockOperation.query.filter_by(id=itemId, gestiune_id=gid).first()
+                if op:
+                    HistoryService.log_action('StockOperation', op.id, 'UPDATE', op, gestiune_id=gid)
+                    op.description = f"Redenumit: {new_plate} (original: {op.description})"
+                    if not company_id: company_id = op.company_id
+                    count += 1
+        else: # ID only (Unallocated Tab Ops)
+            op = StockOperation.query.filter_by(id=int(item), gestiune_id=gid).first()
+            if op:
+                HistoryService.log_action('StockOperation', op.id, 'UPDATE', op, gestiune_id=gid)
+                op.description = f"Redenumit: {new_plate}"
+                count += 1
+
+    # Process explicit transaction IDs (Unallocated Tab)
+    for tid in trans_ids_from_form:
+        t = Transaction.query.filter_by(id=int(tid), gestiune_id=gid).first()
+        if t:
+            HistoryService.log_action('Transaction', t.id, 'UPDATE', t, gestiune_id=gid)
+            t.vehicle_id = v.id
+            if v.company_id: t.company_id = v.company_id
+            count += 1
+
+    db.session.commit()
+    flash(f'{count} elemente au fost redenumite la {new_plate}.', 'success')
+    
+    if company_id:
+        return redirect(f'/admin/stock/details?company_id={company_id}')
     return redirect('/admin/stock/details')
 
 @app.route('/admin/stock/move_bulk', methods=['POST'])
@@ -1746,6 +1812,35 @@ def delete_item(type, id):
     if company_id:
         return redirect(f'/admin/stock/details?company_id={company_id}')
     return redirect('/admin/stock/details')
+
+@app.route('/admin/history/undo')
+def history_undo():
+    from services import HistoryService
+    gid = session.get('gestiune_id')
+    company_id = request.args.get('company_id')
+    
+    success, message = HistoryService.undo(gid)
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'warning')
+        
+    return redirect(url_for('stock_details', company_id=company_id) if company_id else '/admin/stock/details')
+
+@app.route('/admin/history/redo')
+def history_redo():
+    from services import HistoryService
+    gid = session.get('gestiune_id')
+    company_id = request.args.get('company_id')
+    
+    success, message = HistoryService.redo(gid)
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'warning')
+        
+    return redirect(url_for('stock_details', company_id=company_id) if company_id else '/admin/stock/details')
+
 
 
 
