@@ -510,19 +510,32 @@ def generate_pdf_report(start_date, end_date, gestiune_id, company_id=None, bon_
         
         count += 1
 
-    # Save
-    
-    from models import Gestiune
+    # Save - New Filename Requirement (V6.2)
+    from models import Gestiune, Company
     gest = Gestiune.query.get(gestiune_id)
-    gest_name = gest.name.replace(" ", "_") if gest else "Gestiune"
-
-    # PDF System v6.1: Save to Downloads
-    downloads_path = Path.home() / "Downloads"
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+    gest_name = gest.name if gest else "Gestiune"
     
-    filename = f"{timestamp}_Bonuri_{gest_name}.pdf"
+    # Identify display company name
+    target_name = gest_name
     if company_id:
-            filename = f"{timestamp}_Bonuri_{gest_name}_company_{company_id}.pdf"
+        c_obj = Company.query.get(company_id)
+        if c_obj:
+            target_name = c_obj.name
+
+    # PDF System v6.2: Save to Downloads with custom naming
+    downloads_path = Path.home() / "Downloads"
+    
+    # Format components
+    start_str = start_date.strftime('%d.%m.%Y')
+    end_str = end_date.strftime('%d.%m.%Y')
+    
+    # Sanitize for filename
+    import re
+    safe_name = re.sub(r'[\\/*?:"<>|]', "", target_name).strip().replace(" ", "_")
+    safe_bon = re.sub(r'[\\/*?:"<>|]', "", str(bon_number)).strip().replace(" ", "_") if bon_number else "NA"
+    
+    # Pattern: [Ceg] - Bon [Nr] - [Period]
+    filename = f"{safe_name}_Bon_{safe_bon}_de_la_{start_str}_pana_la_{end_str}.pdf"
             
     filepath = str(downloads_path / filename)
     
